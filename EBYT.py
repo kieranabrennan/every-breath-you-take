@@ -18,7 +18,6 @@ from Pacer import Pacer
 
 '''
 TODO: 
-- Plot the pacer rate on the acceleration plot
 - Filter small blips in heart rate from the HRV calculation
 - Make breathing rate more responsive to fast breathing
 - Change the relative seconds arrays to only be calculated with the series is plotted
@@ -155,6 +154,8 @@ class RollingPlot(QChartView):
             self.axis_acc_x.setTitleText("Time (s)")
             self.axis_acc_y.setTitleText("Acceleration (m/s)")
             self.axis_acc_y2.setTitleText("Pacer")
+            self.axis_acc_y2.setLabelsColor(BLUE)
+            self.axis_acc_y2.setTitleBrush(BLUE)
 
             self.series_breath_signal = QLineSeries()
             pen = QPen(BLUE)
