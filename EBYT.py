@@ -301,7 +301,7 @@ class RollingPlot(QChartView):
             self.series_pacer.attachAxis(self.axis_acc_x)
             self.series_pacer.attachAxis(self.axis_acc_y2)
             self.axis_acc_x.setTickCount(10)
-            self.axis_acc_y.setRange(-1, 1)
+            self.axis_acc_y.setRange(-0.75, 0.75)
             self.axis_acc_y2.setRange(0, 1)
             self.axis_acc_x.setRange(-60, 0)
 
@@ -325,7 +325,7 @@ class RollingPlot(QChartView):
         self.series_hr_marker.attachAxis(self.axis_hr_x)
         self.series_hr_marker.attachAxis(self.axis_hr_y)
         self.axis_hr_x.setTickCount(10)
-        self.axis_hr_y.setRange(50, 100)
+        self.axis_hr_y.setRange(50, 85)
         self.axis_hr_x.setRange(-60, 0)
 
         if self.measurement_type == "ACC":
@@ -333,7 +333,7 @@ class RollingPlot(QChartView):
             self.chart_hr.addAxis(self.axis_y_breath_signal, Qt.AlignRight)
             self.series_breath_signal.attachAxis(self.axis_hr_x)
             self.series_breath_signal.attachAxis(self.axis_y_breath_signal)
-            self.axis_y_breath_signal.setRange(-1, 1)
+            self.axis_y_breath_signal.setRange(0, 1)
 
         # Heart rate variability chart
         self.chart_hrv.addSeries(self.series_hrv)
