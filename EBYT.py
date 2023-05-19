@@ -5,7 +5,7 @@ os.environ['QT_LOGGING_RULES'] = 'qt.pointer.dispatch=false' # Disable pointer l
 import sys
 import asyncio
 from PySide6.QtCore import QTimer, Qt, QPointF, QMargins, QSize, Property
-from PySide6.QtWidgets import QApplication, QVBoxLayout, QHBoxLayout, QSizePolicy, QSlider
+from PySide6.QtWidgets import QApplication, QVBoxLayout, QHBoxLayout, QSizePolicy, QSlider, QLabel, QFormLayout
 from PySide6.QtCharts import QChart, QChartView, QLineSeries, QValueAxis, QScatterSeries, QSplineSeries, QAreaSeries
 from PySide6.QtGui import QPen, QColor
 from asyncqt import QEventLoop
@@ -18,6 +18,7 @@ from Pacer import Pacer
 
 '''
 TODO: 
+- Show breathing rate on the slider
 - Filter small blips in heart rate from the HRV calculation
 - Make breathing rate more responsive to fast breathing
 - Change the relative seconds arrays to only be calculated with the series is plotted
@@ -230,6 +231,10 @@ class RollingPlot(QChartView):
         self.pacer_slider.setRange(1,10)
         self.pacer_slider.setValue(self.pacer_rate)
         self.pacer_slider.valueChanged.connect(self.update_pacer_rate)
+        self.pacer_label = QLabel()
+        self.pacer_label.setStyleSheet("QLabel {color: black}")
+        self.pacer_label.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        self.pacer_label.setText(f"{self.pacer_rate}")
 
         self.init_charts()
 
@@ -302,7 +307,7 @@ class RollingPlot(QChartView):
             self.series_pacer.attachAxis(self.axis_acc_y2)
             self.axis_acc_x.setTickCount(10)
             self.axis_acc_y.setRange(-0.75, 0.75)
-            self.axis_acc_y2.setRange(0, 1)
+            self.axis_acc_y2.setRange(-1, 2)
             self.axis_acc_x.setRange(-60, 0)
 
         elif self.measurement_type == "ECG":
@@ -325,7 +330,7 @@ class RollingPlot(QChartView):
         self.series_hr_marker.attachAxis(self.axis_hr_x)
         self.series_hr_marker.attachAxis(self.axis_hr_y)
         self.axis_hr_x.setTickCount(10)
-        self.axis_hr_y.setRange(50, 85)
+        self.axis_hr_y.setRange(55, 85)
         self.axis_hr_x.setRange(-60, 0)
 
         if self.measurement_type == "ACC":
@@ -390,8 +395,12 @@ class RollingPlot(QChartView):
         self.pacer_widget = PacerWidget(*self.pacer.update(self.pacer_rate))
 
         # Create QChartView widgets for both charts
+        hlayout0_slider = QVBoxLayout()
+        hlayout0_slider.addWidget(self.pacer_slider)
+        hlayout0_slider.addWidget(self.pacer_label)
+
         hlayout0 = QHBoxLayout()
-        hlayout0.addWidget(self.pacer_slider)
+        hlayout0.addLayout(hlayout0_slider)
         hlayout0.addWidget(self.pacer_widget)
         hlayout0.addWidget(acc_widget)
         
@@ -430,6 +439,7 @@ class RollingPlot(QChartView):
 
     def update_pacer_rate(self):
         self.pacer_rate = self.pacer_slider.value()
+        self.pacer_label.setText(f"{self.pacer_slider.value()}")
 
     def plot_pacer_disk(self):
         coordinates = self.pacer.update(self.pacer_rate)
