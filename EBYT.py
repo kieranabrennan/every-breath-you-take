@@ -18,9 +18,9 @@ from Pacer import Pacer
 
 '''
 TODO: 
-- FIX the way the heart rate extremes are shown
-- Indicate the detected peaks in HRV and make more robust to noise
+- Make HRV calculation robust to noise
 - Plot breathing displacement
+- Refactor code to run traditional HRV metrics, Poincare plot
 - Tidy the view initialisation
 - Abstract the historic series type
 - Abstract the model from the view, and the view from the main script
@@ -470,9 +470,12 @@ class RollingPlot(QChartView):
             return
 
         current_ibi_extreme = self.ibi_values_hist[-2]
-        # current_hr_extreme = 60.0/(current_ibi_extreme/1000.0)
         latest_hrv = abs(self.ibi_last_extreme - current_ibi_extreme)
         seconds_current_phase = np.ceil(self.ibi_latest_phase_duration / 1000.0)
+
+        if latest_hrv < 0.2*(np.amin(self.hrv_values_hist[-2:])):
+            print(f"Rejected low HRV value")
+            return
 
         self.hrv_values_hist = np.roll(self.hrv_values_hist, -1)
         self.hrv_values_hist[-1] = latest_hrv
