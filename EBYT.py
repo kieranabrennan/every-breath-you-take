@@ -245,8 +245,7 @@ class RollingPlot(QChartView):
         self.pacer_times_hist_rel_s = np.full(self.ACC_HIST_SIZE, np.nan) # relative seconds
         
         self.GRAVITY_ALPHA = 0.999
-        self.acc_gravity = np.zeros(3)
-        # self.ACC_MEAN_ALPHA = 0.995
+        self.acc_gravity = np.full(3, np.nan)
         self.ACC_MEAN_ALPHA = 0.98
         self.acc_norm_exp_mean = 0
         self.acc_zero_centred_exp_mean = np.zeros(3)
@@ -363,7 +362,7 @@ class RollingPlot(QChartView):
             self.series_br.attachAxis(self.axis_hr_y_2)
             self.series_br_marker.attachAxis(self.axis_hrv_x)
             self.series_br_marker.attachAxis(self.axis_hr_y_2)
-            self.axis_hr_y_2.setRange(0, 50)
+            self.axis_hr_y_2.setRange(0, 30)
 
         # Breathing target vs measured
         self.chart_br_ctrl.addSeries(self.series_br_ctrl)
@@ -523,14 +522,14 @@ class RollingPlot(QChartView):
                 self.update_hrv()
 
     def update_breathing_rate(self):
-        current_br_phase = np.sign(self.breath_acc_hist[-1] - self.breath_acc_hist[-2])
-        
-        if current_br_phase <= 0:
-            self.br_last_phase = current_br_phase
-            return
+
+        current_br_phase = np.sign(self.breath_acc_hist[-1])
+
         if current_br_phase == self.br_last_phase:
             return
-    
+        if current_br_phase == 0:
+            return
+
         if np.isnan(self.br_times_hist[-1]):
             self.br_values_hist = np.roll(self.br_values_hist, -1)
             self.br_values_hist[-1] = 0
@@ -587,11 +586,15 @@ class RollingPlot(QChartView):
                 
                 # Updating the acceleration history
                 while not self.polar_device.acc_queue_is_empty():
-                    t, row = self.polar_device.dequeue_acc()
+                    t, acc = self.polar_device.dequeue_acc()
                     t_now = time.time_ns()/1.0e9
 
-                    self.acc_gravity = self.GRAVITY_ALPHA*self.acc_gravity + (1-self.GRAVITY_ALPHA)*row
-                    acc_zero_centred = row - self.acc_gravity
+                    if np.isnan(self.acc_gravity).any():
+                        self.acc_gravity = acc
+                    else:
+                        self.acc_gravity = self.GRAVITY_ALPHA*self.acc_gravity + (1-self.GRAVITY_ALPHA)*acc
+
+                    acc_zero_centred = acc - self.acc_gravity
                     self.acc_norm_exp_mean = self.ACC_MEAN_ALPHA*self.acc_norm_exp_mean + (1-self.ACC_MEAN_ALPHA)*np.linalg.norm(acc_zero_centred)
                     self.acc_zero_centred_exp_mean = self.ACC_MEAN_ALPHA*self.acc_zero_centred_exp_mean + (1-self.ACC_MEAN_ALPHA)*acc_zero_centred
                     
