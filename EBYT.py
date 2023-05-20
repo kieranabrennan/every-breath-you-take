@@ -34,9 +34,10 @@ ORANGE = QColor(255, 130, 0)
 GREEN = QColor(50, 177, 108)
 BLUE = QColor(0, 119, 190)
 GRAY = QColor(34, 34, 34)
+GOLD = QColor(212, 175, 55)
 
 class PacerWidget(QChartView):
-    def __init__(self, x_values=None, y_values=None, color=GRAY):
+    def __init__(self, x_values=None, y_values=None, color=GOLD):
         super().__init__()
 
         self.setSizePolicy(
@@ -135,7 +136,7 @@ class RollingPlot(QChartView):
         self.chart_acc.legend().setVisible(False)
         if self.measurement_type == "ACC":
             self.series_pacer = QLineSeries()
-            pen = QPen(GRAY)
+            pen = QPen(GOLD)
             pen.setWidth(self.LINEWIDTH)
             self.series_pacer.setPen(pen)
             self.axis_acc_x = QValueAxis()
@@ -144,8 +145,8 @@ class RollingPlot(QChartView):
             self.axis_acc_x.setTitleText("Time (s)")
             self.axis_acc_y.setTitleText("Raw accel. (m/s)")
             self.axis_acc_y2.setTitleText("Pacer")
-            self.axis_acc_y2.setLabelsColor(GRAY)
-            self.axis_acc_y2.setTitleBrush(GRAY)
+            self.axis_acc_y2.setLabelsColor(GOLD)
+            self.axis_acc_y2.setTitleBrush(GOLD)
 
             self.series_breath_acc = QLineSeries()
             pen = QPen(BLUE)
@@ -155,6 +156,11 @@ class RollingPlot(QChartView):
             self.axis_y_breath_acc.setTitleText("Breath accel. (m/s)")
             self.axis_y_breath_acc.setLabelsColor(BLUE)
             self.axis_y_breath_acc.setTitleBrush(BLUE)
+            self.series_breath_cycle_marker = QScatterSeries()
+            self.series_breath_cycle_marker.setMarkerSize(4)
+            self.series_breath_cycle_marker.setBorderColor(Qt.transparent)
+            self.series_breath_cycle_marker.setColor(GRAY)
+
 
         elif self.measurement_type == "ECG":
             self.series_ecg = QLineSeries()
@@ -264,6 +270,7 @@ class RollingPlot(QChartView):
         self.br_times_hist_rel_s = np.full(self.BR_HIST_SIZE, np.nan) # relative seconds
         self.br_latest_halfphase_duration = 0
         self.br_last_phase = 0
+        self.breath_cycle_ids = np.full(self.BR_HIST_SIZE, -1, dtype=int)
         self.br_pace_values_hist = np.full(self.BR_HIST_SIZE, np.nan)
         self.hrv_br_interp_values_hist = np.full(self.BR_HIST_SIZE, np.nan)
         
@@ -314,9 +321,12 @@ class RollingPlot(QChartView):
 
         if self.measurement_type == "ACC":
             self.chart_acc.addSeries(self.series_breath_acc)
+            self.chart_acc.addSeries(self.series_breath_cycle_marker)
             self.chart_acc.addAxis(self.axis_y_breath_acc, Qt.AlignRight)
             self.series_breath_acc.attachAxis(self.axis_acc_x)
             self.series_breath_acc.attachAxis(self.axis_y_breath_acc)
+            self.series_breath_cycle_marker.attachAxis(self.axis_acc_x)
+            self.series_breath_cycle_marker.attachAxis(self.axis_y_breath_acc)
             self.axis_y_breath_acc.setRange(-0.5, 0.5)
 
         # Heart rate variability chart
@@ -499,6 +509,7 @@ class RollingPlot(QChartView):
                 self.ibi_times_hist[-1] = 0
 
                 self.hr_extrema_ids = self.hr_extrema_ids - 1
+                self.hr_extrema_ids[self.hr_extrema_ids < -1] = -1
                 
                 self.update_hrv()
 
@@ -512,6 +523,9 @@ class RollingPlot(QChartView):
         if current_br_phase >= 0:
             self.br_last_phase = current_br_phase
             return
+
+        self.breath_cycle_ids = np.roll(self.breath_cycle_ids, -1)
+        self.breath_cycle_ids[-1] = self.BR_ACC_HIST_SIZE - 1
 
         if np.isnan(self.br_times_hist[-1]):
             self.br_values_hist = np.roll(self.br_values_hist, -1)
@@ -593,7 +607,10 @@ class RollingPlot(QChartView):
                         self.breath_acc_hist[-1] = np.dot(self.acc_zero_centred_exp_mean, self.acc_principle_axis)
                         self.breath_acc_times = np.roll(self.breath_acc_times, -1)
                         self.breath_acc_times[-1] = t
-                        
+
+                        self.breath_cycle_ids = self.breath_cycle_ids - 1
+                        self.breath_cycle_ids[self.breath_cycle_ids < -1] = -1
+
                         self.t_last_acc_norm = t
                     
                     self.update_breathing_rate()
@@ -632,6 +649,12 @@ class RollingPlot(QChartView):
                 if not np.isnan(value):
                     series_breath_acc_new.append(QPointF(value, self.breath_acc_hist[i]))
             self.series_breath_acc.replace(series_breath_acc_new)
+
+            series_breath_cycle_marker_new = []
+            for i, value in enumerate(self.breath_cycle_ids):
+                if not value < 0:
+                    series_breath_cycle_marker_new.append(QPointF(self.breath_acc_times_rel_s[value], self.breath_acc_hist[value]))
+            self.series_breath_cycle_marker.replace(series_breath_cycle_marker_new)
 
         series_pacer_new = []
         for i, value in enumerate(self.pacer_times_hist_rel_s):
