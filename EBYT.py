@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QApplication, QVBoxLayout, QHBoxLayout, QSizePolic
 from PySide6.QtCharts import QChart, QChartView, QLineSeries, QValueAxis, QScatterSeries, QSplineSeries, QAreaSeries
 from PySide6.QtGui import QPen, QColor
 from asyncqt import QEventLoop
-from PolarH10 import PolarH10, CircularBuffer2D
+from PolarH10 import PolarH10
 from bleak import BleakScanner
 import time
 import numpy as np
@@ -18,13 +18,13 @@ from Pacer import Pacer
 
 '''
 TODO: 
+- FIX the way the heart rate extremes are shown
+- Indicate the detected peaks in HRV and make more robust to noise
 - Plot breathing displacement
-- Indicate the detected peaks
-- Filter small blips in heart rate from the HRV calculation
-- Make breathing rate more responsive to fast breathing
-- Change the relative seconds arrays to only be calculated with the series is plotted
-- Indicate the sample points on the HR and BR plots
-- Modularise the historic window arrays
+- Tidy the view initialisation
+- Abstract the historic series type
+- Abstract the model from the view, and the view from the main script
+- Make seperate tabs for the Time Series and Control plots
 - Exit the program nicely
 '''
 
@@ -104,10 +104,10 @@ class RollingPlot(QChartView):
         pen = QPen(RED)
         pen.setWidth(self.LINEWIDTH)
         self.series_hr.setPen(pen)
-        self.series_hr_marker = QScatterSeries()
-        self.series_hr_marker.setMarkerSize(4)
-        self.series_hr_marker.setBorderColor(Qt.transparent)
-        self.series_hr_marker.setColor(GRAY)
+        self.series_hr_extreme_marker = QScatterSeries()
+        self.series_hr_extreme_marker.setMarkerSize(4)
+        self.series_hr_extreme_marker.setBorderColor(Qt.transparent)
+        self.series_hr_extreme_marker.setColor(GRAY)
         self.axis_hr_x = QValueAxis()
         self.axis_hr_y = QValueAxis()
         self.axis_hr_x.setTitleText("Time (s)")
@@ -134,18 +134,6 @@ class RollingPlot(QChartView):
         self.chart_acc = QChart()
         self.chart_acc.legend().setVisible(False)
         if self.measurement_type == "ACC":
-            # self.series_acc_x = QScatterSeries()
-            # self.series_acc_x.setMarkerSize(2)
-            # self.series_acc_x.setBorderColor(Qt.transparent)
-            # self.series_acc_x.setColor(YELLOW)
-            # self.series_acc_y = QScatterSeries()
-            # self.series_acc_y.setMarkerSize(2)
-            # self.series_acc_y.setBorderColor(Qt.transparent)
-            # self.series_acc_y.setColor(ORANGE)
-            # self.series_acc_z = QScatterSeries()
-            # self.series_acc_z.setMarkerSize(2)
-            # self.series_acc_z.setBorderColor(Qt.transparent)
-            # self.series_acc_z.setColor(GREEN)
             self.series_pacer = QLineSeries()
             pen = QPen(GRAY)
             pen.setWidth(self.LINEWIDTH)
@@ -268,6 +256,7 @@ class RollingPlot(QChartView):
         self.ibi_last_extreme = 0
         self.hrv_values_hist = np.full(self.HRV_HIST_SIZE, np.nan)
         self.hrv_times_hist = np.arange(-self.HRV_HIST_SIZE, 0) # relative seconds
+        self.hr_extrema_ids = np.full(self.HRV_HIST_SIZE, -1, dtype=int)
         
         self.BR_HIST_SIZE = 300 # Fast breathing 30 bpm, sampled twice every breathing cycle, over 5 minutes this is 300 values
         self.br_values_hist = np.full(self.BR_HIST_SIZE, np.nan)
@@ -312,13 +301,13 @@ class RollingPlot(QChartView):
         
         # Heart rate chart
         self.chart_hr.addSeries(self.series_hr)
-        self.chart_hr.addSeries(self.series_hr_marker)
+        self.chart_hr.addSeries(self.series_hr_extreme_marker)
         self.chart_hr.addAxis(self.axis_hr_x, Qt.AlignBottom)
         self.chart_hr.addAxis(self.axis_hr_y, Qt.AlignLeft)
         self.series_hr.attachAxis(self.axis_hr_x)
         self.series_hr.attachAxis(self.axis_hr_y)
-        self.series_hr_marker.attachAxis(self.axis_hr_x)
-        self.series_hr_marker.attachAxis(self.axis_hr_y)
+        self.series_hr_extreme_marker.attachAxis(self.axis_hr_x)
+        self.series_hr_extreme_marker.attachAxis(self.axis_hr_y)
         self.axis_hr_x.setTickCount(10)
         self.axis_hr_y.setRange(50, 80)
         self.axis_hr_x.setRange(-150, 0)
@@ -467,17 +456,20 @@ class RollingPlot(QChartView):
         self.ibi_latest_phase_duration += self.ibi_values_hist[-1]
         # 1: IBI rises, -1: IBI falls, 0: IBI constant
         current_ibi_phase = np.sign(self.ibi_values_hist[-1] - self.ibi_values_hist[-2])
-        if current_ibi_phase == 0:
-            return
-        if current_ibi_phase == self.ibi_last_phase:
+        if current_ibi_phase == 0 or current_ibi_phase == self.ibi_last_phase:
             return
 
         current_ibi_extreme = self.ibi_values_hist[-2]
+        # current_hr_extreme = 60.0/(current_ibi_extreme/1000.0)
         latest_hrv = abs(self.ibi_last_extreme - current_ibi_extreme)
+        seconds_current_phase = np.ceil(self.ibi_latest_phase_duration / 1000.0)
+
         self.hrv_values_hist = np.roll(self.hrv_values_hist, -1)
         self.hrv_values_hist[-1] = latest_hrv
 
-        seconds_current_phase = np.ceil(self.ibi_latest_phase_duration / 1000.0)
+        self.hr_extrema_ids = np.roll(self.hr_extrema_ids, -1)
+        self.hr_extrema_ids[-1] = self.IBI_HIST_SIZE - 2
+        
         self.hrv_times_hist = self.hrv_times_hist - seconds_current_phase
         self.hrv_times_hist = np.roll(self.hrv_times_hist, -1)
         self.hrv_times_hist[-1] = 0
@@ -505,6 +497,8 @@ class RollingPlot(QChartView):
                 self.ibi_times_hist = -np.flip(np.cumsum(np.flip(self.ibi_values_hist)))/1000.0 # seconds relative to the last value
                 self.ibi_times_hist = np.roll(self.ibi_times_hist, -1)
                 self.ibi_times_hist[-1] = 0
+
+                self.hr_extrema_ids = self.hr_extrema_ids - 1
                 
                 self.update_hrv()
 
@@ -657,7 +651,12 @@ class RollingPlot(QChartView):
             if not np.isnan(value):
                 series_hr_new.append(QPointF(self.ibi_times_hist[i], value))
         self.series_hr.replace(series_hr_new)
-        self.series_hr_marker.replace(series_hr_new)
+
+        series_hr_extreme_marker_new = []
+        for i, value in enumerate(self.hr_extrema_ids):
+            if not value < 0:
+                series_hr_extreme_marker_new.append(QPointF(self.ibi_times_hist[value], self.hr_values_hist[value]))
+        self.series_hr_extreme_marker.replace(series_hr_extreme_marker_new)   
 
         if self.measurement_type == "ACC":
 
