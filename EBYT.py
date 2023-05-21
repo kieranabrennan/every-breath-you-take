@@ -18,9 +18,10 @@ from Pacer import Pacer
 
 '''
 TODO: 
-- Make HRV calculation robust to noise
+- Separate the time series and scatter plots into tabs
+- Show Poincare plot, and other simple methods of HRV estimation that don't use extrema calulations
 - Plot breathing displacement
-- Refactor code to run traditional HRV metrics, Poincare plot
+
 - Tidy the view initialisation
 - Abstract the historic series type
 - Abstract the model from the view, and the view from the main script
@@ -156,11 +157,11 @@ class RollingPlot(QChartView):
             self.axis_y_breath_acc.setTitleText("Breath accel. (m/s)")
             self.axis_y_breath_acc.setLabelsColor(BLUE)
             self.axis_y_breath_acc.setTitleBrush(BLUE)
+            
             self.series_breath_cycle_marker = QScatterSeries()
             self.series_breath_cycle_marker.setMarkerSize(4)
             self.series_breath_cycle_marker.setBorderColor(Qt.transparent)
             self.series_breath_cycle_marker.setColor(GRAY)
-
 
         elif self.measurement_type == "ECG":
             self.series_ecg = QLineSeries()
@@ -241,7 +242,7 @@ class RollingPlot(QChartView):
         self.acc_gravity = np.full(3, np.nan)
         self.ACC_MEAN_ALPHA = 0.98
         self.acc_zero_centred_exp_mean = np.zeros(3)
-        self.acc_principle_axis = np.array([1, 0, 0])
+        self.acc_principle_axis = np.array([0, 0, 1]) # positive z-axis is the direction out of sensor unit (away from chest)
 
         self.BR_ACC_HIST_SIZE = 3000
         self.breath_acc_hist = np.full(self.BR_ACC_HIST_SIZE, np.nan)
@@ -249,7 +250,7 @@ class RollingPlot(QChartView):
         self.breath_acc_times_rel_s = np.full(self.BR_ACC_HIST_SIZE, np.nan)
         self.t_last_acc = 0
         self.t_last_acc_norm = 0
-
+        
         self.IBI_HIST_SIZE = 200
         self.ibi_values_hist = np.full(self.IBI_HIST_SIZE, np.nan)
         self.ibi_times_hist = np.arange(-self.IBI_HIST_SIZE, 0) # relative seconds
@@ -327,7 +328,7 @@ class RollingPlot(QChartView):
             self.series_breath_acc.attachAxis(self.axis_y_breath_acc)
             self.series_breath_cycle_marker.attachAxis(self.axis_acc_x)
             self.series_breath_cycle_marker.attachAxis(self.axis_y_breath_acc)
-            self.axis_y_breath_acc.setRange(-0.5, 0.5)
+            self.axis_y_breath_acc.setRange(-1, 1)
 
         # Heart rate variability chart
         self.chart_hrv.addSeries(self.series_hrv)
@@ -557,22 +558,6 @@ class RollingPlot(QChartView):
 
         self.br_last_phase = current_br_phase
 
-    def calculate_principle_axis(self, vector_arr):
-        
-        vector_arr = vector_arr[~np.isnan(vector_arr).any(axis=1),:]
-        if np.shape(vector_arr)[0] < 4:
-            return
-
-        cov_matrix = np.cov(vector_arr.T)  # note the transpose
-        eig_vals, eig_vecs = np.linalg.eig(cov_matrix)
-        idx = np.argsort(eig_vals)[::-1]
-        eig_vals = eig_vals[idx]
-        eig_vecs = eig_vecs[:, idx]
-        if np.dot(eig_vecs[:, 0], self.acc_principle_axis) < 0: # Prevent flipping
-            self.acc_principle_axis = -1*eig_vecs[:, 0]
-        else:
-            self.acc_principle_axis = eig_vecs[:, 0]
-
     async def update_pmd(self): # pmd: polar measurement data
         
         if self.measurement_type == "ACC":
@@ -601,8 +586,6 @@ class RollingPlot(QChartView):
                         self.acc_times_hist = np.roll(self.acc_times_hist, -1)
                         self.acc_times_hist[-1] = t
                         self.t_last_acc = t
-                        
-                        self.calculate_principle_axis(self.acc_hist[-200: ,:])
                 
                     if (t - self.t_last_acc_norm) > 0.1: # subsampling
             
@@ -652,7 +635,7 @@ class RollingPlot(QChartView):
                 if not np.isnan(value):
                     series_breath_acc_new.append(QPointF(value, self.breath_acc_hist[i]))
             self.series_breath_acc.replace(series_breath_acc_new)
-
+            
             series_breath_cycle_marker_new = []
             for i, value in enumerate(self.breath_cycle_ids):
                 if not value < 0:
