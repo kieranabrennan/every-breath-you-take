@@ -5,7 +5,7 @@ os.environ['QT_LOGGING_RULES'] = 'qt.pointer.dispatch=false' # Disable pointer l
 import sys
 import asyncio
 from PySide6.QtCore import QTimer, Qt, QPointF, QMargins, QSize, Property
-from PySide6.QtWidgets import QApplication, QVBoxLayout, QHBoxLayout, QSizePolicy, QSlider, QLabel, QFormLayout
+from PySide6.QtWidgets import QApplication, QVBoxLayout, QHBoxLayout, QSizePolicy, QSlider, QLabel, QTabWidget, QWidget
 from PySide6.QtCharts import QChart, QChartView, QLineSeries, QValueAxis, QScatterSeries, QSplineSeries, QAreaSeries
 from PySide6.QtGui import QPen, QColor
 from asyncqt import QEventLoop
@@ -20,7 +20,6 @@ from Pacer import Pacer
 TODO: 
 - Separate the time series and scatter plots into tabs
 - Show Poincare plot, and other simple methods of HRV estimation that don't use extrema calulations
-- Plot breathing displacement
 
 - Tidy the view initialisation
 - Abstract the historic series type
@@ -371,7 +370,10 @@ class RollingPlot(QChartView):
         
         # Create a layout
         layout = QVBoxLayout()
-        
+
+        # Create a Tab Widget
+        tab_widget = QTabWidget()
+
         acc_widget = QChartView(self.chart_acc)
         br_ctrl_widget = QChartView(self.chart_br_ctrl)
         hr_widget = QChartView(self.chart_hr)
@@ -390,21 +392,34 @@ class RollingPlot(QChartView):
         hlayout0.addLayout(hlayout0_slider)
         hlayout0.addWidget(self.pacer_widget)
         hlayout0.addWidget(acc_widget)
-        
-        hlayout1 = QHBoxLayout()
-        hlayout1.addWidget(br_ctrl_widget, stretch=1)
-        hlayout1.addWidget(hr_widget, stretch=3)
-        
-        hlayout2 = QHBoxLayout()
-        hlayout2.addWidget(hrv_br_widget, stretch=1)
-        hlayout2.addWidget(hrv_widget, stretch=3)
 
-        # Add chart views to the layout
+        tab1_vlayout = QVBoxLayout()
+        tab1_vlayout.addWidget(hr_widget, stretch=1)
+        tab1_vlayout.addWidget(hrv_widget, stretch=1)
+
+        tab2_hlayout = QHBoxLayout()
+        tab2_hlayout.addWidget(br_ctrl_widget, stretch=1)
+        tab2_hlayout.addWidget(hrv_br_widget, stretch=1)
+
+        tab1 = QWidget()
+        tab2 = QWidget()
+        tab1.setLayout(tab1_vlayout)
+        tab2.setLayout(tab2_hlayout)
+        tab_widget.addTab(tab1, "Biofeeback")
+        tab_widget.addTab(tab2, "Analysis")
+        tab_widget.setStyleSheet("""
+            QTabBar::tab:selected {
+                background: lightgray;
+                color: black;
+            }
+            QTabBar::tab:!selected {
+                background: gray;
+                color: white;
+            }
+        """)
+
         layout.addLayout(hlayout0, stretch=1)
-        layout.addLayout(hlayout1, stretch=1)
-        layout.addLayout(hlayout2, stretch=1)
-
-        # Set the layout for the QWidget
+        layout.addWidget(tab_widget, stretch=2.5)
         self.setLayout(layout)
 
         # Kick off the timer
