@@ -18,9 +18,8 @@ from Pacer import Pacer
 
 '''
 TODO: 
-- Separate the time series and scatter plots into tabs
 - Show Poincare plot, and other simple methods of HRV estimation that don't use extrema calulations
-
+- Autoscale the y-axes
 - Tidy the view initialisation
 - Abstract the historic series type
 - Abstract the model from the view, and the view from the main script
@@ -188,8 +187,9 @@ class RollingPlot(QChartView):
 
         # Breathing target vs measured chart
         self.chart_br_ctrl = QChart()
+        self.chart_br_ctrl.setTitle("Breathing control")
         self.chart_br_ctrl.legend().setVisible(False)
-        self.chart_br_ctrl.setMargins(QMargins(0,0,0,0))
+        self.chart_br_ctrl.setMargins(QMargins(10,20,10,10))
         self.series_br_ctrl = QScatterSeries()
         self.series_br_ctrl.setMarkerSize(5)
         self.series_br_ctrl.setBorderColor(Qt.transparent)
@@ -201,8 +201,9 @@ class RollingPlot(QChartView):
 
         # HRV vs BR chart
         self.chart_hrv_br = QChart()
+        self.chart_hrv_br.setTitle("Respiratory Sinus Arhythmia")
         self.chart_hrv_br.legend().setVisible(False)
-        self.chart_hrv_br.setMargins(QMargins(0,0,0,0))
+        self.chart_hrv_br.setMargins(QMargins(10,20,10,10))
         self.series_hrv_br = QScatterSeries()
         self.series_hrv_br.setMarkerSize(5)
         self.series_hrv_br.setBorderColor(Qt.transparent)
@@ -211,6 +212,20 @@ class RollingPlot(QChartView):
         self.axis_hrv_br_y = QValueAxis()
         self.axis_hrv_br_x.setTitleText("BR (bpm)")
         self.axis_hrv_br_y.setTitleText("HRV (ms)")
+
+        # Poincare plot
+        self.chart_poincare = QChart()
+        self.chart_poincare.setTitle("Poincare Plot")
+        self.chart_poincare.legend().setVisible(False)
+        self.chart_poincare.setMargins(QMargins(10,20,10,10))
+        self.series_poincare = QScatterSeries()
+        self.series_poincare.setMarkerSize(5)
+        self.series_poincare.setBorderColor(Qt.transparent)
+        self.series_poincare.setColor(ORANGE)
+        self.axis_poincare_x = QValueAxis()
+        self.axis_poincare_y = QValueAxis()
+        self.axis_poincare_x.setTitleText("RR_n (ms)")
+        self.axis_poincare_y.setTitleText("RR_n+1 (ms)")
 
         self.pacer_slider = QSlider(Qt.Vertical)
         self.pacer_slider.setStyleSheet("""QSlider {
@@ -367,6 +382,16 @@ class RollingPlot(QChartView):
         self.series_hrv_br.attachAxis(self.axis_hrv_br_y)
         self.axis_hrv_br_x.setRange(0,10)
         self.axis_hrv_br_y.setRange(0,250)
+
+        # Poincare
+        self.chart_poincare.addSeries(self.series_poincare)
+        self.chart_poincare.addAxis(self.axis_poincare_x, Qt.AlignBottom)
+        self.chart_poincare.addAxis(self.axis_poincare_y, Qt.AlignLeft)
+        self.series_poincare.attachAxis(self.axis_poincare_x)
+        self.series_poincare.attachAxis(self.axis_poincare_y)
+        self.axis_poincare_x.setRange(600,1100)
+        self.axis_poincare_y.setRange(600,1100)
+
         
         # Create a layout
         layout = QVBoxLayout()
@@ -379,6 +404,7 @@ class RollingPlot(QChartView):
         hr_widget = QChartView(self.chart_hr)
         hrv_br_widget = QChartView(self.chart_hrv_br)        
         hrv_widget = QChartView(self.chart_hrv)
+        poincare_widget = QChartView(self.chart_poincare)
 
         self.pacer = Pacer()
         self.pacer_widget = PacerWidget(*self.pacer.update(self.pacer_rate))
@@ -400,6 +426,7 @@ class RollingPlot(QChartView):
         tab2_hlayout = QHBoxLayout()
         tab2_hlayout.addWidget(br_ctrl_widget, stretch=1)
         tab2_hlayout.addWidget(hrv_br_widget, stretch=1)
+        tab2_hlayout.addWidget(poincare_widget, stretch=1)
 
         tab1 = QWidget()
         tab2 = QWidget()
@@ -721,6 +748,13 @@ class RollingPlot(QChartView):
             if not np.isnan(value):
                 series_hrv_br_new.append(QPointF(value, self.hrv_br_interp_values_hist[i]))
         self.series_hrv_br.replace(series_hrv_br_new)
+
+        # Poincare plot
+        series_poincare_new = []
+        for i, value in enumerate(self.ibi_values_hist[:-1]):
+            if not np.isnan(value):
+                series_poincare_new.append(QPointF(value, self.ibi_values_hist[i+1]))
+        self.series_poincare.replace(series_poincare_new)
 
 
     async def main(self):
