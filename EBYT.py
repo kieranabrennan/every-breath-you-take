@@ -18,8 +18,7 @@ from Pacer import Pacer
 
 '''
 TODO: 
-- Show Poincare plot, and other simple methods of HRV estimation that don't use extrema calulations
-- Autoscale the y-axes
+- Explore other HRV calculations
 - Tidy the view initialisation
 - Abstract the historic series type
 - Abstract the model from the view, and the view from the main script
@@ -125,10 +124,10 @@ class RollingPlot(QChartView):
             self.series_br_marker.setMarkerSize(4)
             self.series_br_marker.setBorderColor(Qt.transparent)
             self.series_br_marker.setColor(GRAY)
-            self.axis_hr_y_2 = QValueAxis()
-            self.axis_hr_y_2.setTitleText("BR (bpm)")
-            self.axis_hr_y_2.setLabelsColor(BLUE)
-            self.axis_hr_y_2.setTitleBrush(BLUE) 
+            self.axis_br_y = QValueAxis()
+            self.axis_br_y.setTitleText("BR (bpm)")
+            self.axis_br_y.setLabelsColor(BLUE)
+            self.axis_br_y.setTitleBrush(BLUE) 
 
         # Acceleration chart
         self.chart_acc = QChart()
@@ -358,12 +357,12 @@ class RollingPlot(QChartView):
             # Breathing rate on HRV chart
             self.chart_hrv.addSeries(self.series_br)
             self.chart_hrv.addSeries(self.series_br_marker)
-            self.chart_hrv.addAxis(self.axis_hr_y_2, Qt.AlignRight)
+            self.chart_hrv.addAxis(self.axis_br_y, Qt.AlignRight)
             self.series_br.attachAxis(self.axis_hrv_x)
-            self.series_br.attachAxis(self.axis_hr_y_2)
+            self.series_br.attachAxis(self.axis_br_y)
             self.series_br_marker.attachAxis(self.axis_hrv_x)
-            self.series_br_marker.attachAxis(self.axis_hr_y_2)
-            self.axis_hr_y_2.setRange(0, 20)
+            self.series_br_marker.attachAxis(self.axis_br_y)
+            self.axis_br_y.setRange(0, 20)
 
         # Breathing target vs measured
         self.chart_br_ctrl.addSeries(self.series_br_ctrl)
@@ -709,6 +708,11 @@ class RollingPlot(QChartView):
                 series_hr_extreme_marker_new.append(QPointF(self.ibi_times_hist[value], self.hr_values_hist[value]))
         self.series_hr_extreme_marker.replace(series_hr_extreme_marker_new)   
 
+        if np.any(~np.isnan(self.hr_values_hist)):
+            max_val = np.ceil(np.nanmax(self.hr_values_hist[self.ibi_times_hist > -150])/5)*5
+            min_val = np.floor(np.nanmin(self.hr_values_hist[self.ibi_times_hist > -150])/5)*5
+            self.axis_hr_y.setRange(min_val, max_val)
+
         if self.measurement_type == "ACC":
 
             # Breathing rate plot
@@ -718,6 +722,10 @@ class RollingPlot(QChartView):
                     series_br_new.append(QPointF(self.br_times_hist_rel_s[i], value))
             self.series_br.replace(series_br_new)
             self.series_br_marker.replace(series_br_new)
+            
+            if np.any(~np.isnan(self.br_values_hist)):
+                max_val = np.ceil(np.nanmax(self.br_values_hist[self.br_times_hist_rel_s > -300])/5)*5
+                self.axis_br_y.setRange(0, max_val)
         
         elif self.measurement_type == "ECG":
             # ECG plot
@@ -734,6 +742,10 @@ class RollingPlot(QChartView):
             if not np.isnan(value):
                 series_hrv_new.append(QPointF(self.hrv_times_hist[i], value))
         self.series_hrv.replace(series_hrv_new)   
+
+        if np.any(~np.isnan(self.hrv_values_hist)):
+            max_val = np.ceil(np.nanmax(self.hrv_values_hist[self.hrv_times_hist > -300])/5)*5
+            self.axis_hrv_y.setRange(0, max_val)
 
         # Breathing control plot
         series_br_ctrl_new = []
