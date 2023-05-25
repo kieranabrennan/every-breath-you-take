@@ -19,6 +19,7 @@ from Pacer import Pacer
 '''
 TODO: 
 - Explore other HRV calculations
+- Remove very high breathing rates
 - Tidy the view initialisation
 - Abstract the historic series type
 - Abstract the model from the view, and the view from the main script
@@ -197,6 +198,12 @@ class RollingPlot(QChartView):
         self.axis_br_ctrl_y = QValueAxis()
         self.axis_br_ctrl_x.setTitleText("Target BR (bpm)")
         self.axis_br_ctrl_y.setTitleText("Measured BR (bpm)")
+        self.series_br_ctrl_line = QLineSeries()
+        pen = QPen(BLUE)
+        pen.setWidth(2)
+        pen.setStyle(Qt.DotLine)
+        self.series_br_ctrl_line.setPen(pen)
+        self.series_br_ctrl_line.append([QPointF(0, 0), QPointF(30, 30)])
 
         # HRV vs BR chart
         self.chart_hrv_br = QChart()
@@ -366,12 +373,16 @@ class RollingPlot(QChartView):
 
         # Breathing target vs measured
         self.chart_br_ctrl.addSeries(self.series_br_ctrl)
+        self.chart_br_ctrl.addSeries(self.series_br_ctrl_line)
         self.chart_br_ctrl.addAxis(self.axis_br_ctrl_x, Qt.AlignBottom)
         self.chart_br_ctrl.addAxis(self.axis_br_ctrl_y, Qt.AlignLeft)
         self.series_br_ctrl.attachAxis(self.axis_br_ctrl_x)
         self.series_br_ctrl.attachAxis(self.axis_br_ctrl_y)
+        self.series_br_ctrl_line.attachAxis(self.axis_br_ctrl_x)
+        self.series_br_ctrl_line.attachAxis(self.axis_br_ctrl_y)
         self.axis_br_ctrl_x.setRange(0,10)
         self.axis_br_ctrl_y.setRange(0,10)
+
 
         # HRV vs BR
         self.chart_hrv_br.addSeries(self.series_hrv_br)
@@ -744,7 +755,7 @@ class RollingPlot(QChartView):
         self.series_hrv.replace(series_hrv_new)   
 
         if np.any(~np.isnan(self.hrv_values_hist)):
-            max_val = np.ceil(np.nanmax(self.hrv_values_hist[self.hrv_times_hist > -300])/5)*5
+            max_val = np.ceil(np.nanmax(self.hrv_values_hist[self.hrv_times_hist > -300])/10)*10
             self.axis_hrv_y.setRange(0, max_val)
 
         # Breathing control plot
@@ -754,12 +765,22 @@ class RollingPlot(QChartView):
                 series_br_ctrl_new.append(QPointF(self.br_pace_values_hist[i], value))
         self.series_br_ctrl.replace(series_br_ctrl_new)
 
+        if np.any(~np.isnan(self.br_values_hist)):
+                max_val = np.ceil(np.nanmax(self.br_values_hist)/2)*2
+                self.axis_br_ctrl_x.setRange(0, max_val)
+                self.axis_br_ctrl_y.setRange(0, max_val)
+        
+
         # HRV vs BR plot
         series_hrv_br_new = []
-        for i, value in enumerate(self.br_values_hist):
+        for i, value in enumerate(self.hrv_br_interp_values_hist):
             if not np.isnan(value):
-                series_hrv_br_new.append(QPointF(value, self.hrv_br_interp_values_hist[i]))
+                series_hrv_br_new.append(QPointF(self.br_values_hist[i], value))
         self.series_hrv_br.replace(series_hrv_br_new)
+
+        if np.any(~np.isnan(self.hrv_br_interp_values_hist)):
+            self.axis_hrv_br_x.setRange(0, np.ceil(np.nanmax(self.br_values_hist)/2)*2)
+            self.axis_hrv_br_y.setRange(0, np.ceil(np.nanmax(self.hrv_br_interp_values_hist)/10)*10)
 
         # Poincare plot
         series_poincare_new = []
@@ -767,6 +788,12 @@ class RollingPlot(QChartView):
             if not np.isnan(value):
                 series_poincare_new.append(QPointF(value, self.ibi_values_hist[i+1]))
         self.series_poincare.replace(series_poincare_new)
+
+        if np.any(~np.isnan(self.ibi_values_hist)):
+            max_val = np.ceil(np.nanmax(self.ibi_values_hist)/25)*25
+            min_val = np.floor(np.nanmin(self.ibi_values_hist)/25)*25
+            self.axis_poincare_x.setRange(min_val, max_val)
+            self.axis_poincare_y.setRange(min_val, max_val)
 
 
     async def main(self):
