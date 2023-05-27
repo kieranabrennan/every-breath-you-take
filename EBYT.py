@@ -19,7 +19,6 @@ from Pacer import Pacer
 '''
 TODO: 
 - Explore other HRV calculations
-- Remove very high breathing rates
 - Tidy the view initialisation
 - Abstract the historic series type
 - Abstract the model from the view, and the view from the main script
@@ -90,9 +89,8 @@ class PacerWidget(QChartView):
         return super().resizeEvent(event)
 
 class RollingPlot(QChartView):
-    def __init__(self, measurement_type="ACC", parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.measurement_type = measurement_type
 
         self.LINEWIDTH = 2.5
         self.pacer_rate = 6
@@ -116,60 +114,48 @@ class RollingPlot(QChartView):
         self.axis_hr_y.setTitleBrush(RED)  # Set the font color of the axis title to red
 
         # Breathing rate
-        if self.measurement_type == "ACC":
-            self.series_br = QLineSeries()
-            pen = QPen(BLUE)
-            pen.setWidth(self.LINEWIDTH)
-            self.series_br.setPen(pen)
-            self.series_br_marker = QScatterSeries()
-            self.series_br_marker.setMarkerSize(4)
-            self.series_br_marker.setBorderColor(Qt.transparent)
-            self.series_br_marker.setColor(GRAY)
-            self.axis_br_y = QValueAxis()
-            self.axis_br_y.setTitleText("BR (bpm)")
-            self.axis_br_y.setLabelsColor(BLUE)
-            self.axis_br_y.setTitleBrush(BLUE) 
+        self.series_br = QLineSeries()
+        pen = QPen(BLUE)
+        pen.setWidth(self.LINEWIDTH)
+        self.series_br.setPen(pen)
+        self.series_br_marker = QScatterSeries()
+        self.series_br_marker.setMarkerSize(4)
+        self.series_br_marker.setBorderColor(Qt.transparent)
+        self.series_br_marker.setColor(GRAY)
+        self.axis_br_y = QValueAxis()
+        self.axis_br_y.setTitleText("BR (bpm)")
+        self.axis_br_y.setLabelsColor(BLUE)
+        self.axis_br_y.setTitleBrush(BLUE) 
 
         # Acceleration chart
         self.chart_acc = QChart()
         self.chart_acc.legend().setVisible(False)
-        if self.measurement_type == "ACC":
-            self.series_pacer = QLineSeries()
-            pen = QPen(GOLD)
-            pen.setWidth(self.LINEWIDTH)
-            self.series_pacer.setPen(pen)
-            self.axis_acc_x = QValueAxis()
-            self.axis_acc_y = QValueAxis()
-            self.axis_acc_y2 = QValueAxis()
-            self.axis_acc_x.setTitleText("Time (s)")
-            self.axis_acc_y.setTitleText("Raw accel. (m/s)")
-            self.axis_acc_y2.setTitleText("Pacer")
-            self.axis_acc_y2.setLabelsColor(GOLD)
-            self.axis_acc_y2.setTitleBrush(GOLD)
+        self.series_pacer = QLineSeries()
+        pen = QPen(GOLD)
+        pen.setWidth(self.LINEWIDTH)
+        self.series_pacer.setPen(pen)
+        self.axis_acc_x = QValueAxis()
+        self.axis_acc_y = QValueAxis()
+        self.axis_acc_y2 = QValueAxis()
+        self.axis_acc_x.setTitleText("Time (s)")
+        self.axis_acc_y.setTitleText("Raw accel. (m/s)")
+        self.axis_acc_y2.setTitleText("Pacer")
+        self.axis_acc_y2.setLabelsColor(GOLD)
+        self.axis_acc_y2.setTitleBrush(GOLD)
 
-            self.series_breath_acc = QLineSeries()
-            pen = QPen(BLUE)
-            pen.setWidth(self.LINEWIDTH)
-            self.series_breath_acc.setPen(pen)
-            self.axis_y_breath_acc = QValueAxis()
-            self.axis_y_breath_acc.setTitleText("Breath accel. (m/s)")
-            self.axis_y_breath_acc.setLabelsColor(BLUE)
-            self.axis_y_breath_acc.setTitleBrush(BLUE)
-            
-            self.series_breath_cycle_marker = QScatterSeries()
-            self.series_breath_cycle_marker.setMarkerSize(4)
-            self.series_breath_cycle_marker.setBorderColor(Qt.transparent)
-            self.series_breath_cycle_marker.setColor(GRAY)
-
-        elif self.measurement_type == "ECG":
-            self.series_ecg = QLineSeries()
-            pen = QPen(BLUE)
-            pen.setWidth(self.LINEWIDTH)
-            self.series_ecg.setPen(pen)
-            self.axis_acc_x = QValueAxis()
-            self.axis_acc_y = QValueAxis()
-            self.axis_acc_y.setTitleText("ECG (mV)")
-            self.axis_acc_x.setTitleText("Time (s)")
+        self.series_breath_acc = QLineSeries()
+        pen = QPen(BLUE)
+        pen.setWidth(self.LINEWIDTH)
+        self.series_breath_acc.setPen(pen)
+        self.axis_y_breath_acc = QValueAxis()
+        self.axis_y_breath_acc.setTitleText("Breath accel. (m/s)")
+        self.axis_y_breath_acc.setLabelsColor(BLUE)
+        self.axis_y_breath_acc.setTitleBrush(BLUE)
+        
+        self.series_breath_cycle_marker = QScatterSeries()
+        self.series_breath_cycle_marker.setMarkerSize(4)
+        self.series_breath_cycle_marker.setBorderColor(Qt.transparent)
+        self.series_breath_cycle_marker.setColor(GRAY)
 
         # Heart rate variability chart
         self.chart_hrv = QChart()
@@ -295,37 +281,19 @@ class RollingPlot(QChartView):
         self.br_pace_values_hist = np.full(self.BR_HIST_SIZE, np.nan)
         self.hrv_br_interp_values_hist = np.full(self.BR_HIST_SIZE, np.nan)
         
-        self.ECG_HIST_SIZE = 3000 # Raw data comes in at 130 Hz
-        self.ecg_hist = np.full(self.ECG_HIST_SIZE, np.nan)
-        self.ecg_times_hist = np.full(self.ECG_HIST_SIZE, np.nan) # epoch seconds
-        self.ecg_times_hist_rel_s = np.full(self.ECG_HIST_SIZE, np.nan) # relative seconds 
-        
         self.polar_device = None
 
     def init_charts(self):
-        
-        # Initialize second chart
-        if self.measurement_type == "ACC":
 
-            # Acceleration chart
-            self.chart_acc.addSeries(self.series_pacer)
-            self.chart_acc.addAxis(self.axis_acc_x, Qt.AlignBottom)
-            self.chart_acc.addAxis(self.axis_acc_y2, Qt.AlignLeft)
-            self.series_pacer.attachAxis(self.axis_acc_x)
-            self.series_pacer.attachAxis(self.axis_acc_y2)
-            self.axis_acc_x.setTickCount(10)
-            self.axis_acc_y2.setRange(-1, 2)
-            self.axis_acc_x.setRange(-60, 0)
-
-        elif self.measurement_type == "ECG":
-            self.chart_acc.addSeries(self.series_ecg)
-            self.chart_acc.addAxis(self.axis_acc_x, Qt.AlignBottom)
-            self.chart_acc.addAxis(self.axis_acc_y, Qt.AlignLeft)
-            self.series_ecg.attachAxis(self.axis_acc_x)
-            self.series_ecg.attachAxis(self.axis_acc_y)
-            self.axis_acc_x.setTickCount(10)
-            self.axis_acc_y.setRange(-600, 1800)
-            self.axis_acc_x.setRange(-60, 0)
+        # Acceleration chart
+        self.chart_acc.addSeries(self.series_pacer)
+        self.chart_acc.addAxis(self.axis_acc_x, Qt.AlignBottom)
+        self.chart_acc.addAxis(self.axis_acc_y2, Qt.AlignLeft)
+        self.series_pacer.attachAxis(self.axis_acc_x)
+        self.series_pacer.attachAxis(self.axis_acc_y2)
+        self.axis_acc_x.setTickCount(10)
+        self.axis_acc_y2.setRange(-1, 2)
+        self.axis_acc_x.setRange(-60, 0)
         
         # Heart rate chart
         self.chart_hr.addSeries(self.series_hr)
@@ -340,15 +308,14 @@ class RollingPlot(QChartView):
         self.axis_hr_y.setRange(50, 80)
         self.axis_hr_x.setRange(-150, 0)
 
-        if self.measurement_type == "ACC":
-            self.chart_acc.addSeries(self.series_breath_acc)
-            self.chart_acc.addSeries(self.series_breath_cycle_marker)
-            self.chart_acc.addAxis(self.axis_y_breath_acc, Qt.AlignRight)
-            self.series_breath_acc.attachAxis(self.axis_acc_x)
-            self.series_breath_acc.attachAxis(self.axis_y_breath_acc)
-            self.series_breath_cycle_marker.attachAxis(self.axis_acc_x)
-            self.series_breath_cycle_marker.attachAxis(self.axis_y_breath_acc)
-            self.axis_y_breath_acc.setRange(-1, 1)
+        self.chart_acc.addSeries(self.series_breath_acc)
+        self.chart_acc.addSeries(self.series_breath_cycle_marker)
+        self.chart_acc.addAxis(self.axis_y_breath_acc, Qt.AlignRight)
+        self.series_breath_acc.attachAxis(self.axis_acc_x)
+        self.series_breath_acc.attachAxis(self.axis_y_breath_acc)
+        self.series_breath_cycle_marker.attachAxis(self.axis_acc_x)
+        self.series_breath_cycle_marker.attachAxis(self.axis_y_breath_acc)
+        self.axis_y_breath_acc.setRange(-1, 1)
 
         # Heart rate variability chart
         self.chart_hrv.addSeries(self.series_hrv)
@@ -360,16 +327,15 @@ class RollingPlot(QChartView):
         self.axis_hrv_y.setRange(0, 250)
         self.axis_hrv_x.setRange(-300, 0)
 
-        if self.measurement_type == "ACC":
-            # Breathing rate on HRV chart
-            self.chart_hrv.addSeries(self.series_br)
-            self.chart_hrv.addSeries(self.series_br_marker)
-            self.chart_hrv.addAxis(self.axis_br_y, Qt.AlignRight)
-            self.series_br.attachAxis(self.axis_hrv_x)
-            self.series_br.attachAxis(self.axis_br_y)
-            self.series_br_marker.attachAxis(self.axis_hrv_x)
-            self.series_br_marker.attachAxis(self.axis_br_y)
-            self.axis_br_y.setRange(0, 20)
+        # Breathing rate on HRV chart
+        self.chart_hrv.addSeries(self.series_br)
+        self.chart_hrv.addSeries(self.series_br_marker)
+        self.chart_hrv.addAxis(self.axis_br_y, Qt.AlignRight)
+        self.series_br.attachAxis(self.axis_hrv_x)
+        self.series_br.attachAxis(self.axis_br_y)
+        self.series_br_marker.attachAxis(self.axis_hrv_x)
+        self.series_br_marker.attachAxis(self.axis_br_y)
+        self.axis_br_y.setRange(0, 20)
 
         # Breathing target vs measured
         self.chart_br_ctrl.addSeries(self.series_br_ctrl)
@@ -556,6 +522,9 @@ class RollingPlot(QChartView):
             while not self.polar_device.ibi_queue_is_empty():
                 t, ibi = self.polar_device.dequeue_ibi() # t is when value was added to the queue
                 
+                if ibi < 300 or ibi > 1600:
+                    continue
+
                 self.ibi_values_hist = np.roll(self.ibi_values_hist, -1)
                 self.ibi_values_hist[-1] = ibi
                 self.hr_values_hist = 60.0/(self.ibi_values_hist/1000.0)
@@ -596,6 +565,9 @@ class RollingPlot(QChartView):
             seconds_current_phase = self.breath_acc_times[-1] - self.br_times_hist[-1]
             current_breathing_rate = 60.0 / (seconds_current_phase)
 
+            if current_breathing_rate > 60:
+                return
+
             self.br_values_hist = np.roll(self.br_values_hist, -1)
             self.br_values_hist[-1] = current_breathing_rate
 
@@ -612,87 +584,62 @@ class RollingPlot(QChartView):
 
     async def update_pmd(self): # pmd: polar measurement data
         
-        if self.measurement_type == "ACC":
-
-            await self.polar_device.start_acc_stream()
-            
-            while True:
-                await asyncio.sleep(0.01)
-                
-                # Updating the acceleration history
-                while not self.polar_device.acc_queue_is_empty():
-                    t, acc = self.polar_device.dequeue_acc()
-                    t_now = time.time_ns()/1.0e9
-
-                    if np.isnan(self.acc_gravity).any():
-                        self.acc_gravity = acc
-                    else:
-                        self.acc_gravity = self.GRAVITY_ALPHA*self.acc_gravity + (1-self.GRAVITY_ALPHA)*acc
-
-                    acc_zero_centred = acc - self.acc_gravity
-                    self.acc_zero_centred_exp_mean = self.ACC_MEAN_ALPHA*self.acc_zero_centred_exp_mean + (1-self.ACC_MEAN_ALPHA)*acc_zero_centred
-                    
-                    if (t - self.t_last_acc) > 0.05: # subsampling at 20 Hz
-                        self.acc_hist = np.roll(self.acc_hist, -1, axis=0)
-                        self.acc_hist[-1, :] = self.acc_zero_centred_exp_mean
-                        self.acc_times_hist = np.roll(self.acc_times_hist, -1)
-                        self.acc_times_hist[-1] = t
-                        self.t_last_acc = t
-                
-                    if (t - self.t_last_acc_norm) > 0.1: # subsampling
-            
-                        self.breath_acc_hist = np.roll(self.breath_acc_hist, -1)
-                        self.breath_acc_hist[-1] = np.dot(self.acc_zero_centred_exp_mean, self.acc_principle_axis)
-                        self.breath_acc_times = np.roll(self.breath_acc_times, -1)
-                        self.breath_acc_times[-1] = t
-
-                        self.breath_cycle_ids = self.breath_cycle_ids - 1
-                        self.breath_cycle_ids[self.breath_cycle_ids < -1] = -1
-
-                        self.t_last_acc_norm = t
-                    
-                    self.update_breathing_rate()
-
+        await self.polar_device.start_acc_stream()
         
-        elif self.measurement_type == "ECG":
-
-            await self.polar_device.start_ecg_stream()
-
-            while True:
-                await asyncio.sleep(0.01)
-                
+        while True:
+            await asyncio.sleep(0.01)
+            
+            # Updating the acceleration history
+            while not self.polar_device.acc_queue_is_empty():
+                t, acc = self.polar_device.dequeue_acc()
                 t_now = time.time_ns()/1.0e9
+
+                if np.isnan(self.acc_gravity).any():
+                    self.acc_gravity = acc
+                else:
+                    self.acc_gravity = self.GRAVITY_ALPHA*self.acc_gravity + (1-self.GRAVITY_ALPHA)*acc
+
+                acc_zero_centred = acc - self.acc_gravity
+                self.acc_zero_centred_exp_mean = self.ACC_MEAN_ALPHA*self.acc_zero_centred_exp_mean + (1-self.ACC_MEAN_ALPHA)*acc_zero_centred
                 
-                # Updating the ECG history
-                while not self.polar_device.ecg_queue_is_empty():
-                    t, value = self.polar_device.dequeue_ecg()
-                    self.ecg_times_hist = np.roll(self.ecg_times_hist, -1)
-                    self.ecg_times_hist[-1] = t
-                    
-                    self.ecg_hist = np.roll(self.ecg_hist, -1)
-                    self.ecg_hist[-1] = value
+                if (t - self.t_last_acc) > 0.05: # subsampling at 20 Hz
+                    self.acc_hist = np.roll(self.acc_hist, -1, axis=0)
+                    self.acc_hist[-1, :] = self.acc_zero_centred_exp_mean
+                    self.acc_times_hist = np.roll(self.acc_times_hist, -1)
+                    self.acc_times_hist[-1] = t
+                    self.t_last_acc = t
+            
+                if (t - self.t_last_acc_norm) > 0.1: # subsampling
+        
+                    self.breath_acc_hist = np.roll(self.breath_acc_hist, -1)
+                    self.breath_acc_hist[-1] = np.dot(self.acc_zero_centred_exp_mean, self.acc_principle_axis)
+                    self.breath_acc_times = np.roll(self.breath_acc_times, -1)
+                    self.breath_acc_times[-1] = t
+
+                    self.breath_cycle_ids = self.breath_cycle_ids - 1
+                    self.breath_cycle_ids[self.breath_cycle_ids < -1] = -1
+
+                    self.t_last_acc_norm = t
                 
-                self.ecg_times_hist_rel_s = self.ecg_times_hist - t_now 
+                self.update_breathing_rate()
 
     def update_acc_series(self):
         
         self.pacer_times_hist_rel_s = self.pacer_times_hist - time.time_ns()/1.0e9
-        
-        if self.measurement_type == "ACC":
             
-            self.breath_acc_times_rel_s = self.breath_acc_times - time.time_ns()/1.0e9
-            series_breath_acc_new = []
+        self.breath_acc_times_rel_s = self.breath_acc_times - time.time_ns()/1.0e9
+        series_breath_acc_new = []
 
-            for i, value in enumerate(self.breath_acc_times_rel_s):
-                if not np.isnan(value):
-                    series_breath_acc_new.append(QPointF(value, self.breath_acc_hist[i]))
-            self.series_breath_acc.replace(series_breath_acc_new)
-            
-            series_breath_cycle_marker_new = []
-            for i, value in enumerate(self.breath_cycle_ids):
-                if not value < 0:
-                    series_breath_cycle_marker_new.append(QPointF(self.breath_acc_times_rel_s[value], self.breath_acc_hist[value]))
-            self.series_breath_cycle_marker.replace(series_breath_cycle_marker_new)
+        for i, value in enumerate(self.breath_acc_times_rel_s):
+            if not np.isnan(value):
+                series_breath_acc_new.append(QPointF(value, self.breath_acc_hist[i]))
+        self.series_breath_acc.replace(series_breath_acc_new)
+        
+        series_breath_cycle_marker_new = []
+        for i, value in enumerate(self.breath_cycle_ids):
+            if not value < 0:
+                series_breath_cycle_marker_new.append(QPointF(self.breath_acc_times_rel_s[value], self.breath_acc_hist[value]))
+        self.series_breath_cycle_marker.replace(series_breath_cycle_marker_new)
 
         series_pacer_new = []
         for i, value in enumerate(self.pacer_times_hist_rel_s):
@@ -724,29 +671,18 @@ class RollingPlot(QChartView):
             min_val = np.floor(np.nanmin(self.hr_values_hist[self.ibi_times_hist > -150])/5)*5
             self.axis_hr_y.setRange(min_val, max_val)
 
-        if self.measurement_type == "ACC":
-
-            # Breathing rate plot
-            series_br_new = []
-            for i, value in enumerate(self.br_values_hist):
-                if not np.isnan(value):
-                    series_br_new.append(QPointF(self.br_times_hist_rel_s[i], value))
-            self.series_br.replace(series_br_new)
-            self.series_br_marker.replace(series_br_new)
-            
-            if np.any(~np.isnan(self.br_values_hist)):
-                max_val = np.ceil(np.nanmax(self.br_values_hist[self.br_times_hist_rel_s > -300])/5)*5
-                self.axis_br_y.setRange(0, max_val)
+        # Breathing rate plot
+        series_br_new = []
+        for i, value in enumerate(self.br_values_hist):
+            if not np.isnan(value):
+                series_br_new.append(QPointF(self.br_times_hist_rel_s[i], value))
+        self.series_br.replace(series_br_new)
+        self.series_br_marker.replace(series_br_new)
         
-        elif self.measurement_type == "ECG":
-            # ECG plot
-            series_2_new = []
-            for i, value in enumerate(self.ecg_times_hist_rel_s):
-                if not np.isnan(value):
-                    series_2_new.append(QPointF(value, self.ecg_hist[i]))
-            
-            self.series_ecg.replace(series_2_new)     
-
+        if np.any(~np.isnan(self.br_values_hist)):
+            max_val = np.ceil(np.nanmax(self.br_values_hist[self.br_times_hist_rel_s > -300])/5)*5
+            self.axis_br_y.setRange(0, max_val)
+        
         # HRV plot
         series_hrv_new = []
         for i, value in enumerate(self.hrv_values_hist):
@@ -800,20 +736,13 @@ class RollingPlot(QChartView):
         await self.connect_polar()
         await asyncio.gather(self.update_ibi(), self.update_pmd())
     
-def get_arguments():
-    parser = argparse.ArgumentParser(description="Real-time Breathing Feedback with the Polar H10 Heart Rate Monitor")
-    parser.add_argument("measurement_type", choices=["ACC", "ECG"], default="ACC", help="Measurement Type")
-    return parser.parse_args()
-
 if __name__ == "__main__":
-
-    args = get_arguments()
 
     app = QApplication(sys.argv)
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
     
-    plot = RollingPlot(args.measurement_type)
+    plot = RollingPlot()
     plot.setWindowTitle("Rolling Plot")
     plot.resize(1200, 800)
     plot.show()
