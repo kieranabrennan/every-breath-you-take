@@ -88,6 +88,8 @@ class View(QChartView):
         self.LINEWIDTH = 2.5
         self.pacer_rate = 6
 
+        staging_edit
+
         # Breathing acceleration
         self.chart_acc = self.create_chart(title='Breathing Acceleration', showTitle=False, showLegend=False)
         self.series_pacer = self.create_line_series(GOLD, self.LINEWIDTH)
