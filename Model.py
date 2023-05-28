@@ -15,9 +15,6 @@ class Model:
         self.acc_hist = np.full((self.ACC_HIST_SIZE, 3), np.nan)
         self.acc_times_hist = np.full(self.ACC_HIST_SIZE, np.nan) # epoch seconds
         self.acc_times_hist_rel_s = np.full(self.ACC_HIST_SIZE, np.nan) # relative seconds
-        # self.pacer_values_hist = np.full((self.ACC_HIST_SIZE, 1), np.nan)
-        # self.pacer_times_hist = np.full((self.ACC_HIST_SIZE, 1), np.nan)
-        # self.pacer_times_hist_rel_s = np.full(self.ACC_HIST_SIZE, np.nan) # relative seconds
         
         self.GRAVITY_ALPHA = 0.999
         self.acc_gravity = np.full(3, np.nan)
@@ -69,7 +66,6 @@ class Model:
 
     def update_hrv(self):
 
-        print("HRV Is updating baby")
         self.ibi_latest_phase_duration += self.ibi_values_hist[-1]
         # 1: IBI rises, -1: IBI falls, 0: IBI constant
         current_ibi_phase = np.sign(self.ibi_values_hist[-1] - self.ibi_values_hist[-2])
