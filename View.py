@@ -16,16 +16,9 @@ TODO:
 - Abstract the historic series type
 - Exit the program nicely
 '''
-RED = QColor(200, 30, 45)
-YELLOW = QColor(254, 191, 0)
-ORANGE = QColor(255, 130, 0)
-GREEN = QColor(50, 177, 108)
-BLUE = QColor(0, 119, 190)
-GRAY = QColor(34, 34, 34)
-GOLD = QColor(212, 175, 55)
 
 class PacerWidget(QChartView):
-    def __init__(self, x_values=None, y_values=None, color=GOLD):
+    def __init__(self, x_values=None, y_values=None, color=None):
         super().__init__()
 
         self.setSizePolicy(
@@ -85,67 +78,73 @@ class View(QChartView):
 
         self.model = Model()
 
+        # Plot parameters
+        self.RED = QColor(200, 30, 45)
+        self.YELLOW = QColor(254, 191, 0)
+        self.ORANGE = QColor(255, 130, 0)
+        self.GREEN = QColor(50, 177, 108)
+        self.BLUE = QColor(0, 119, 190)
+        self.GRAY = QColor(34, 34, 34)
+        self.GOLD = QColor(212, 175, 55)
         self.LINEWIDTH = 2.5
+        self.DOTSIZE_SMALL = 4
+        self.DOTSIZE_LARGE = 5
+
+        # Series parameters
+        self.UPDATE_SERIES_PERIOD = 100 # ms
+        self.UPDATE_BREATHING_SERIES_PERIOD = 50 # ms
+        self.UPDATE_PACER_PERIOD = 20 # ms
+        self.PACER_HIST_SIZE = 1200
+        self.HR_SERIES_TIME_RANGE = 150 # s
+        self.HRV_SERIES_TIME_RANGE = 300 # s
+
+        # Initialisation
         self.pacer_rate = 6
 
         # Breathing acceleration
         self.chart_acc = self.create_chart(title='Breathing Acceleration', showTitle=False, showLegend=False)
-        self.series_pacer = self.create_line_series(GOLD, self.LINEWIDTH)
-        self.series_breath_acc = self.create_line_series(BLUE, self.LINEWIDTH)
-        self.series_breath_cycle_marker = self.create_scatter_series(GRAY, 4)
+        self.series_pacer = self.create_line_series(self.GOLD, self.LINEWIDTH)
+        self.series_breath_acc = self.create_line_series(self.BLUE, self.LINEWIDTH)
+        self.series_breath_cycle_marker = self.create_scatter_series(self.GRAY, self.DOTSIZE_SMALL)
         self.axis_acc_x = self.create_axis(title="Time (s)", tickCount=10, rangeMin=-60, rangeMax=0)
-        self.axis_y_pacer = self.create_axis(title="Pacer", color=GOLD, rangeMin=-1, rangeMax=2)
-        self.axis_y_breath_acc = self.create_axis("Breath accel. (m/s)", BLUE, rangeMin=-1, rangeMax=1)
-
-        # Configure
-        self.chart_acc.addSeries(self.series_pacer)
-        self.chart_acc.addAxis(self.axis_acc_x, Qt.AlignBottom)
-        self.chart_acc.addAxis(self.axis_y_pacer, Qt.AlignLeft)
-        self.series_pacer.attachAxis(self.axis_acc_x)
-        self.series_pacer.attachAxis(self.axis_y_pacer)
-        self.chart_acc.addSeries(self.series_breath_acc)
-        self.chart_acc.addSeries(self.series_breath_cycle_marker)
-        self.chart_acc.addAxis(self.axis_y_breath_acc, Qt.AlignRight)
-        self.series_breath_acc.attachAxis(self.axis_acc_x)
-        self.series_breath_acc.attachAxis(self.axis_y_breath_acc)
-        self.series_breath_cycle_marker.attachAxis(self.axis_acc_x)
-        self.series_breath_cycle_marker.attachAxis(self.axis_y_breath_acc)
+        self.axis_y_pacer = self.create_axis(title="Pacer", color=self.GOLD, rangeMin=-1, rangeMax=2)
+        self.axis_y_breath_acc = self.create_axis("Breath accel. (m/s)", self.BLUE, rangeMin=-1, rangeMax=1)
 
         # Heart rate chart
         self.chart_hr = self.create_chart(title='Heart rate', showTitle=False, showLegend=False)
-        self.series_hr = self.create_line_series(RED, self.LINEWIDTH)
-        self.series_hr_extreme_marker = self.create_scatter_series(GRAY, 4)
-        self.axis_hr_x = self.create_axis(title="Time (s)", tickCount=10, rangeMin=-150, rangeMax=0)
-        self.axis_hr_y = self.create_axis(title="HR (bpm)", color=RED, rangeMin=50, rangeMax=80)
+        self.series_hr = self.create_line_series(self.RED, self.LINEWIDTH)
+        self.series_hr_extreme_marker = self.create_scatter_series(self.GRAY, self.DOTSIZE_SMALL)
+        self.axis_hr_x = self.create_axis(title="Time (s)", tickCount=10, rangeMin=-self.HR_SERIES_TIME_RANGE, rangeMax=0)
+        self.axis_hr_y = self.create_axis(title="HR (bpm)", color=self.RED, rangeMin=50, rangeMax=80)
 
         # Breathing rate
-        self.series_br = self.create_line_series(BLUE, self.LINEWIDTH)
-        self.series_br_marker = self.create_scatter_series(GRAY, 4)
-        self.axis_br_y = self.create_axis(title="BR (bpm)", color=BLUE, rangeMin=0, rangeMax=20)
+        self.series_br = self.create_line_series(self.BLUE, self.LINEWIDTH)
+        self.series_br_marker = self.create_scatter_series(self.GRAY, self.DOTSIZE_SMALL)
+        self.axis_br_y = self.create_axis(title="BR (bpm)", color=self.BLUE, rangeMin=0, rangeMax=20)
         
         # Heart rate variability chart
         self.chart_hrv = self.create_chart(title='Heart rate variability', showTitle=False, showLegend=False)
-        self.series_hrv = self.create_spline_series(RED, self.LINEWIDTH)
-        self.axis_hrv_x = self.create_axis(title="Time (s)", tickCount=10, rangeMin=-300, rangeMax=0)
-        self.axis_hrv_y = self.create_axis(title="HRV (ms)", color=RED, rangeMin=0, rangeMax=250)
+        self.series_hrv = self.create_spline_series(self.RED, self.LINEWIDTH)
+        self.axis_hrv_x = self.create_axis(title="Time (s)", tickCount=10, rangeMin=-self.HRV_SERIES_TIME_RANGE, rangeMax=0)
+        self.axis_hrv_y = self.create_axis(title="HRV (ms)", color=self.RED, rangeMin=0, rangeMax=250)
         
         # Breathing target vs measured chart
         self.chart_br_ctrl = self.create_chart(title='Breathing control', showTitle=True, showLegend=False, margins=QMargins(10,20,10,10))
-        self.series_br_ctrl = self.create_scatter_series(BLUE, 5)
+        self.series_br_ctrl = self.create_scatter_series(self.BLUE, self.DOTSIZE_LARGE)
         self.axis_br_ctrl_x = self.create_axis(title="Target BR (bpm)", rangeMin=0, rangeMax=10)
-        self.axis_br_ctrl_y = self.create_axis(title="Measured BR (bpm)", color=BLUE, rangeMin=0, rangeMax=10)
-        self.series_br_ctrl_line = self.create_line_series(BLUE, self.LINEWIDTH, Qt.DotLine)
+        self.axis_br_ctrl_y = self.create_axis(title="Measured BR (bpm)", color=self.BLUE, rangeMin=0, rangeMax=10)
+        self.series_br_ctrl_line = self.create_line_series(self.BLUE, self.LINEWIDTH, Qt.DotLine)
         self.series_br_ctrl_line.append([QPointF(0, 0), QPointF(30, 30)])
 
         # HRV vs BR chart
         self.chart_hrv_br = self.create_chart(title='Respiratory Sinus Arhythmia', showTitle=True, showLegend=False, margins=QMargins(10,20,10,10))
-        self.series_hrv_br = self.create_scatter_series(RED, 5)
-        self.axis_hrv_br_x = self.create_axis(title="BR (bpm)", color=BLUE, rangeMin=0, rangeMax=10)
-        self.axis_hrv_br_y = self.create_axis(title="HRV (ms)", color=RED, rangeMin=0, rangeMax=250)
+        self.series_hrv_br = self.create_scatter_series(self.RED, self.DOTSIZE_LARGE)
+        self.axis_hrv_br_x = self.create_axis(title="BR (bpm)", color=self.BLUE, rangeMin=0, rangeMax=10)
+        self.axis_hrv_br_y = self.create_axis(title="HRV (ms)", color=self.RED, rangeMin=0, rangeMax=250)
         
         # Poincare plot
         self.chart_poincare = self.create_chart(title='Poincare Plot', showTitle=True, showLegend=False, margins=QMargins(10,20,10,10))
-        self.series_poincare = self.create_scatter_series(ORANGE, 5)
+        self.series_poincare = self.create_scatter_series(self.ORANGE, self.DOTSIZE_LARGE)
         self.axis_poincare_x = self.create_axis(title="RR_n (ms)", rangeMin=600, rangeMax=1100)
         self.axis_poincare_y = self.create_axis(title="RR_n+1 (ms)", rangeMin=600, rangeMax=1100)
         
@@ -164,6 +163,20 @@ class View(QChartView):
         self.pacer_label.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
         self.pacer_label.setText(f"{self.pacer_rate}")
         
+        # Configure
+        self.chart_acc.addSeries(self.series_pacer)
+        self.chart_acc.addAxis(self.axis_acc_x, Qt.AlignBottom)
+        self.chart_acc.addAxis(self.axis_y_pacer, Qt.AlignLeft)
+        self.series_pacer.attachAxis(self.axis_acc_x)
+        self.series_pacer.attachAxis(self.axis_y_pacer)
+        self.chart_acc.addSeries(self.series_breath_acc)
+        self.chart_acc.addSeries(self.series_breath_cycle_marker)
+        self.chart_acc.addAxis(self.axis_y_breath_acc, Qt.AlignRight)
+        self.series_breath_acc.attachAxis(self.axis_acc_x)
+        self.series_breath_acc.attachAxis(self.axis_y_breath_acc)
+        self.series_breath_cycle_marker.attachAxis(self.axis_acc_x)
+        self.series_breath_cycle_marker.attachAxis(self.axis_y_breath_acc)
+
         # Heart rate chart
         self.chart_hr.addSeries(self.series_hr)
         self.chart_hr.addSeries(self.series_hr_extreme_marker)
@@ -190,7 +203,7 @@ class View(QChartView):
         self.series_br_marker.attachAxis(self.axis_hrv_x)
         self.series_br_marker.attachAxis(self.axis_br_y)
 
-        # Breathing target vs measured
+        # Breathing control
         self.chart_br_ctrl.addSeries(self.series_br_ctrl)
         self.chart_br_ctrl.addSeries(self.series_br_ctrl_line)
         self.chart_br_ctrl.addAxis(self.axis_br_ctrl_x, Qt.AlignBottom)
@@ -226,7 +239,7 @@ class View(QChartView):
         poincare_widget = QChartView(self.chart_poincare)
 
         # self.pacer = Pacer()
-        self.pacer_widget = PacerWidget(*self.model.pacer.update(self.pacer_rate))
+        self.pacer_widget = PacerWidget(*self.model.pacer.update(self.pacer_rate), self.GOLD)
 
         # Create QChartView widgets for both charts
         hlayout0_slider = QVBoxLayout()
@@ -259,7 +272,7 @@ class View(QChartView):
                 color: black;
             }
             QTabBar::tab:!selected {
-                background: gray;
+                background: QColor(34, 34, 34);
                 color: white;
             }
         """)
@@ -271,21 +284,20 @@ class View(QChartView):
         # Kick off the timer
         self.update_series_timer = QTimer()
         self.update_series_timer.timeout.connect(self.update_series)
-        self.update_series_timer.setInterval(100)
+        self.update_series_timer.setInterval(self.UPDATE_SERIES_PERIOD)
 
         self.update_acc_series_timer = QTimer()
         self.update_acc_series_timer.timeout.connect(self.update_acc_series)
-        self.update_acc_series_timer.setInterval(50)
+        self.update_acc_series_timer.setInterval(self.UPDATE_BREATHING_SERIES_PERIOD)
         
         self.pacer_timer = QTimer()
-        self.pacer_timer.setInterval(50)  # ms (20 Hz)
+        self.pacer_timer.setInterval(self.UPDATE_PACER_PERIOD)  # ms (20 Hz)
         self.pacer_timer.timeout.connect(self.plot_pacer_disk)
 
         self.update_acc_series_timer.start()
         self.update_series_timer.start()
         self.pacer_timer.start()
 
-        self.PACER_HIST_SIZE = 1200
         self.pacer_values_hist = np.full((self.PACER_HIST_SIZE, 1), np.nan)
         self.pacer_times_hist = np.full((self.PACER_HIST_SIZE, 1), np.nan)
         self.pacer_times_hist_rel_s = np.full(self.PACER_HIST_SIZE, np.nan) # relative seconds
@@ -298,14 +310,18 @@ class View(QChartView):
             chart.setMargins(margins)
         return chart
     
-    def create_scatter_series(self, color=BLUE, size=5):
+    def create_scatter_series(self, color=None, size=5):
+        if color is None:
+            color = self.GRAY
         series = QScatterSeries()
         series.setMarkerSize(size)
         series.setBorderColor(Qt.transparent)
         series.setColor(color)
         return series
 
-    def create_line_series(self, color=BLUE, width=2, style=None):
+    def create_line_series(self, color=None, width=2, style=None):
+        if color is None:
+            color = self.GRAY
         series = QLineSeries()
         pen = QPen(color)
         pen.setWidth(width)
@@ -314,14 +330,18 @@ class View(QChartView):
         series.setPen(pen)
         return series
 
-    def create_spline_series(self, color=BLUE, width=2):
+    def create_spline_series(self, color=None, width=2):
+        if color is None:
+            color = self.GRAY
         series = QSplineSeries()
         pen = QPen(color)
         pen.setWidth(width)
         series.setPen(pen)
         return series
 
-    def create_axis(self, title=None, color=GRAY, tickCount=None, rangeMin=None, rangeMax=None):
+    def create_axis(self, title=None, color=None, tickCount=None, rangeMin=None, rangeMax=None):
+        if color is None:
+            color = self.GRAY
         axis = QValueAxis()
         axis.setTitleText(title)
         axis.setLabelsColor(color)
@@ -403,18 +423,18 @@ class View(QChartView):
         series_hr_new = []
         for i, value in enumerate(self.model.hr_values_hist):
             if not np.isnan(value):
-                series_hr_new.append(QPointF(self.model.ibi_times_hist[i], value))
+                series_hr_new.append(QPointF(self.model.ibi_times_hist_rel_s[i], value))
         self.series_hr.replace(series_hr_new)
 
         series_hr_extreme_marker_new = []
         for i, value in enumerate(self.model.hr_extrema_ids):
             if not value < 0:
-                series_hr_extreme_marker_new.append(QPointF(self.model.ibi_times_hist[value], self.model.hr_values_hist[value]))
+                series_hr_extreme_marker_new.append(QPointF(self.model.ibi_times_hist_rel_s[value], self.model.hr_values_hist[value]))
         self.series_hr_extreme_marker.replace(series_hr_extreme_marker_new)   
 
         if np.any(~np.isnan(self.model.hr_values_hist)):
-            max_val = np.ceil(np.nanmax(self.model.hr_values_hist[self.model.ibi_times_hist > -150])/5)*5
-            min_val = np.floor(np.nanmin(self.model.hr_values_hist[self.model.ibi_times_hist > -150])/5)*5
+            max_val = np.ceil(np.nanmax(self.model.hr_values_hist[self.model.ibi_times_hist_rel_s > -self.HR_SERIES_TIME_RANGE])/5)*5
+            min_val = np.floor(np.nanmin(self.model.hr_values_hist[self.model.ibi_times_hist_rel_s > -self.HR_SERIES_TIME_RANGE])/5)*5
             self.axis_hr_y.setRange(min_val, max_val)
 
         # Breathing rate plot
@@ -426,7 +446,7 @@ class View(QChartView):
         self.series_br_marker.replace(series_br_new)
         
         if np.any(~np.isnan(self.model.br_values_hist)):
-            max_val = np.ceil(np.nanmax(self.model.br_values_hist[self.br_times_hist_rel_s > -300])/5)*5
+            max_val = np.ceil(np.nanmax(self.model.br_values_hist[self.br_times_hist_rel_s > -self.HRV_SERIES_TIME_RANGE])/5)*5
             self.axis_br_y.setRange(0, max_val)
         
         # HRV plot
@@ -437,7 +457,7 @@ class View(QChartView):
         self.series_hrv.replace(series_hrv_new)   
 
         if np.any(~np.isnan(self.model.hrv_values_hist)):
-            max_val = np.ceil(np.nanmax(self.model.hrv_values_hist[self.model.hrv_times_hist > -300])/10)*10
+            max_val = np.ceil(np.nanmax(self.model.hrv_values_hist[self.model.hrv_times_hist > -self.HRV_SERIES_TIME_RANGE])/10)*10
             self.axis_hrv_y.setRange(0, max_val)
 
         # Breathing control plot
@@ -478,5 +498,5 @@ class View(QChartView):
 
     async def main(self):
         await self.connect_polar()
-        await asyncio.gather(self.model.update_ibi(), self.model.update_pmd())
+        await asyncio.gather(self.model.update_ibi(), self.model.update_acc())
     
