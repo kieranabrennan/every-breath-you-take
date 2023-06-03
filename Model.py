@@ -77,7 +77,6 @@ class Model:
         self.maxmin_values_hist = np.full(self.BR_HIST_SIZE, np.nan) # Max-min HR in a breathing cycle
 
         self.br_pace_values_hist = np.full(self.BR_HIST_SIZE, np.nan)
-        self.hrv_br_interp_values_hist = np.full(self.BR_HIST_SIZE, np.nan)
 
         self.hr_extrema_ids = np.full(self.HRV_HIST_SIZE, -1, dtype=int)
         self.breath_cycle_ids = np.full(self.BR_HIST_SIZE, -1, dtype=int)
@@ -217,9 +216,6 @@ class Model:
 
             self.br_pace_values_hist = np.roll(self.br_pace_values_hist, -1)
             self.br_pace_values_hist[-1] = self.pacer.last_breathing_rate  
-
-            self.hrv_br_interp_values_hist = np.roll(self.hrv_br_interp_values_hist, -1)
-            self.hrv_br_interp_values_hist[-1] = self.hrv_values_hist[-1]
 
             self.br_times_hist = np.roll(self.br_times_hist, -1)
             self.br_times_hist[-1] = self.breath_acc_times[-1]

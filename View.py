@@ -131,26 +131,14 @@ class View(QChartView):
         self.series_maxmin = self.create_spline_series(self.RED, self.LINEWIDTH)
         self.axis_hrv_x = self.create_axis(title="Time (s)", tickCount=10, rangeMin=-self.HRV_SERIES_TIME_RANGE, rangeMax=0)
         self.axis_hrv_y = self.create_axis(title="HRV (ms)", color=self.RED, rangeMin=0, rangeMax=250)
-        
-        # Breathing target vs measured chart
-        self.chart_br_ctrl = self.create_chart(title='Breathing control', showTitle=True, showLegend=False, margins=QMargins(10,20,10,10))
-        self.series_br_ctrl = self.create_scatter_series(self.BLUE, self.DOTSIZE_LARGE)
-        self.axis_br_ctrl_x = self.create_axis(title="Target BR (bpm)", rangeMin=0, rangeMax=10)
-        self.axis_br_ctrl_y = self.create_axis(title="Measured BR (bpm)", color=self.BLUE, rangeMin=0, rangeMax=10)
-        self.series_br_ctrl_line = self.create_line_series(self.BLUE, self.LINEWIDTH, Qt.DotLine)
-        self.series_br_ctrl_line.append([QPointF(0, 0), QPointF(30, 30)])
 
-        # HRV vs BR chart
-        self.chart_hrv_br = self.create_chart(title='Respiratory Sinus Arhythmia', showTitle=True, showLegend=False, margins=QMargins(10,20,10,10))
-        self.series_hrv_br = self.create_scatter_series(self.RED, self.DOTSIZE_LARGE)
-        self.axis_hrv_br_x = self.create_axis(title="BR (bpm)", color=self.BLUE, rangeMin=0, rangeMax=10)
-        self.axis_hrv_br_y = self.create_axis(title="HRV (ms)", color=self.RED, rangeMin=0, rangeMax=250)
-        
         # Poincare plot
         self.chart_poincare = self.create_chart(title='Poincare Plot', showTitle=True, showLegend=False, margins=QMargins(10,20,10,10))
         self.series_poincare = self.create_scatter_series(self.ORANGE, self.DOTSIZE_LARGE)
         self.axis_poincare_x = self.create_axis(title="RR_n (ms)", rangeMin=600, rangeMax=1100)
         self.axis_poincare_y = self.create_axis(title="RR_n+1 (ms)", rangeMin=600, rangeMax=1100)
+        self.series_poincare_identity = self.create_line_series(self.ORANGE, 1, Qt.DashLine)
+        self.series_poincare_identity.append([QPointF(0, 0), QPointF(1500, 1500)])
 
         # HRV spectrum
         self.chart_hrv_spectrum = self.create_chart(title='HRV Spectrum', showTitle=True, showLegend=False, margins=QMargins(10,20,10,10))
@@ -219,29 +207,15 @@ class View(QChartView):
         self.series_br_marker.attachAxis(self.axis_hrv_x)
         self.series_br_marker.attachAxis(self.axis_br_y)
 
-        # Breathing control
-        self.chart_br_ctrl.addSeries(self.series_br_ctrl)
-        self.chart_br_ctrl.addSeries(self.series_br_ctrl_line)
-        self.chart_br_ctrl.addAxis(self.axis_br_ctrl_x, Qt.AlignBottom)
-        self.chart_br_ctrl.addAxis(self.axis_br_ctrl_y, Qt.AlignLeft)
-        self.series_br_ctrl.attachAxis(self.axis_br_ctrl_x)
-        self.series_br_ctrl.attachAxis(self.axis_br_ctrl_y)
-        self.series_br_ctrl_line.attachAxis(self.axis_br_ctrl_x)
-        self.series_br_ctrl_line.attachAxis(self.axis_br_ctrl_y)
-
-        # HRV vs BR
-        self.chart_hrv_br.addSeries(self.series_hrv_br)
-        self.chart_hrv_br.addAxis(self.axis_hrv_br_x, Qt.AlignBottom)
-        self.chart_hrv_br.addAxis(self.axis_hrv_br_y, Qt.AlignLeft)
-        self.series_hrv_br.attachAxis(self.axis_hrv_br_x)
-        self.series_hrv_br.attachAxis(self.axis_hrv_br_y)
-        
         # Poincare
         self.chart_poincare.addSeries(self.series_poincare)
+        self.chart_poincare.addSeries(self.series_poincare_identity)
         self.chart_poincare.addAxis(self.axis_poincare_x, Qt.AlignBottom)
         self.chart_poincare.addAxis(self.axis_poincare_y, Qt.AlignLeft)
         self.series_poincare.attachAxis(self.axis_poincare_x)
         self.series_poincare.attachAxis(self.axis_poincare_y)
+        self.series_poincare_identity.attachAxis(self.axis_poincare_x)
+        self.series_poincare_identity.attachAxis(self.axis_poincare_y)
 
         # HRV spectrum
         self.chart_hrv_spectrum.addSeries(self.series_hrv_spectrum)
@@ -255,9 +229,7 @@ class View(QChartView):
         tab_widget = QTabWidget()
 
         acc_widget = QChartView(self.chart_acc)
-        br_ctrl_widget = QChartView(self.chart_br_ctrl)
-        hr_widget = QChartView(self.chart_hr)
-        hrv_br_widget = QChartView(self.chart_hrv_br)        
+        hr_widget = QChartView(self.chart_hr)      
         hrv_widget = QChartView(self.chart_hrv)
         poincare_widget = QChartView(self.chart_poincare)
         hrv_spectrum_widget = QChartView(self.chart_hrv_spectrum)
@@ -265,9 +237,7 @@ class View(QChartView):
         self.pacer_widget = PacerWidget(*self.model.pacer.update(self.pacer_rate), self.GOLD)
 
         acc_widget.setRenderHint(QPainter.Antialiasing)
-        br_ctrl_widget.setRenderHint(QPainter.Antialiasing)
         hr_widget.setRenderHint(QPainter.Antialiasing)
-        hrv_br_widget.setRenderHint(QPainter.Antialiasing)
         hrv_widget.setRenderHint(QPainter.Antialiasing)
         poincare_widget.setRenderHint(QPainter.Antialiasing)
         self.pacer_widget.setRenderHint(QPainter.Antialiasing)
@@ -288,13 +258,9 @@ class View(QChartView):
         tab1_vlayout.addWidget(hrv_widget, stretch=1)
 
         tab2_hlayout = QHBoxLayout()
-        tab2_hlayout.addWidget(br_ctrl_widget, stretch=1)
-        tab2_hlayout.addWidget(hrv_br_widget, stretch=1)
-        vlayout_poincare = QVBoxLayout()
-        vlayout_poincare.addWidget(poincare_widget)
-        vlayout_poincare.addWidget(hrv_spectrum_widget)
-        tab2_hlayout.addLayout(vlayout_poincare, stretch=1)
-
+        tab2_hlayout.addWidget(hrv_spectrum_widget, stretch=1)
+        tab2_hlayout.addWidget(poincare_widget, stretch=1)
+    
         tab1 = QWidget()
         tab2 = QWidget()
         tab1.setLayout(tab1_vlayout)
@@ -511,30 +477,7 @@ class View(QChartView):
                 series_maxmin_new.append(QPointF(self.br_times_hist_rel_s[i], self.model.maxmin_values_hist[i]))
         self.series_rmssd.replace(series_rmssd_new)
         self.series_maxmin.replace(series_maxmin_new)
-
-        # Breathing control plot
-        series_br_ctrl_new = []
-        for i, value in enumerate(self.model.br_values_hist):
-            if not np.isnan(value):
-                series_br_ctrl_new.append(QPointF(self.model.br_pace_values_hist[i], value))
-        self.series_br_ctrl.replace(series_br_ctrl_new)
-
-        if np.any(~np.isnan(self.model.br_values_hist)):
-                max_val = np.ceil(np.nanmax(self.model.br_values_hist)/2)*2
-                self.axis_br_ctrl_x.setRange(0, max_val)
-                self.axis_br_ctrl_y.setRange(0, max_val)
-        
-        # HRV vs BR plot
-        series_hrv_br_new = []
-        for i, value in enumerate(self.model.hrv_br_interp_values_hist):
-            if not np.isnan(value):
-                series_hrv_br_new.append(QPointF(self.model.br_values_hist[i], value))
-        self.series_hrv_br.replace(series_hrv_br_new)
-
-        if np.any(~np.isnan(self.model.hrv_br_interp_values_hist)):
-            self.axis_hrv_br_x.setRange(0, np.ceil(np.nanmax(self.model.br_values_hist)/2)*2)
-            self.axis_hrv_br_y.setRange(0, np.ceil(np.nanmax(self.model.hrv_br_interp_values_hist)/10)*10)
-
+    
         # Poincare plot
         series_poincare_new = []
         for i, value in enumerate(self.model.ibi_values_hist[:-1]):
@@ -543,8 +486,8 @@ class View(QChartView):
         self.series_poincare.replace(series_poincare_new)
 
         if np.any(~np.isnan(self.model.ibi_values_hist)):
-            max_val = np.ceil(np.nanmax(self.model.ibi_values_hist)/25)*25
-            min_val = np.floor(np.nanmin(self.model.ibi_values_hist)/25)*25
+            max_val = np.ceil(np.nanmax(self.model.ibi_values_hist)/100)*100
+            min_val = np.floor(np.nanmin(self.model.ibi_values_hist)/100)*100
             self.axis_poincare_x.setRange(min_val, max_val)
             self.axis_poincare_y.setRange(min_val, max_val)
 
