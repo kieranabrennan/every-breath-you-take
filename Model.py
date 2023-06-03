@@ -3,6 +3,7 @@ import asyncio
 from PolarH10 import PolarH10
 import time
 from Pacer import Pacer
+from scipy import signal
 
 '''
 TODO:
@@ -58,10 +59,15 @@ class Model:
         
         self.ibi_values_hist = np.full(self.IBI_HIST_SIZE, np.nan)
         self.ibi_times_hist_rel_s = np.full(self.IBI_HIST_SIZE, np.nan) 
+        self.ibi_values_interp_hist = [] # Interpolated IBI values
+        self.ibi_times_interp_hist = [] # Interpolated IBI times
         self.hr_values_hist = np.full(self.IBI_HIST_SIZE, np.nan)
         
         self.hrv_values_hist = np.full(self.HRV_HIST_SIZE, np.nan) # HR range based on local IBI extrema
         self.hrv_times_hist = np.arange(-self.HRV_HIST_SIZE, 0) 
+
+        self.hrv_psd_freqs_hist = []
+        self.hrv_psd_values_hist = []
         
         self.br_values_hist = np.full(self.BR_HIST_SIZE, np.nan)
         self.br_times_hist = np.full(self.BR_HIST_SIZE, np.nan) 
@@ -123,6 +129,20 @@ class Model:
         self.ibi_last_extreme = current_ibi_extreme
         self.ibi_last_phase = current_ibi_phase
 
+    def update_hrv_spectrum(self):
+        # Interpolate ibi at fixed intervals with interval size as the smallest ibi
+        values = self.ibi_values_hist[~np.isnan(self.ibi_values_hist)]
+        times = self.ibi_times_hist_rel_s[~np.isnan(self.ibi_times_hist_rel_s)][1:]
+        t_start = times[0] 
+        t_end = times[-1]
+        dt = np.amin(values)/1000.0/2.0
+        self.ibi_times_interp_hist = np.arange(t_start, t_end+dt, dt)
+        self.ibi_values_interp_hist = np.interp(self.ibi_times_interp_hist, times, values)
+        
+        # Calculate HRV spectrum
+        self.hrv_psd_freqs_hist, self.hrv_psd_values_hist = signal.periodogram(self.ibi_values_interp_hist, fs=1/dt, window='hann', detrend='linear')
+
+
     async def update_ibi(self):
         await self.polar_sensor.start_hr_stream()
 
@@ -151,6 +171,7 @@ class Model:
                 self.hr_extrema_ids[self.hr_extrema_ids < -1] = -1
                 
                 self.update_hrv()
+                self.update_hrv_spectrum()
 
     def update_breathing_rate(self):
 

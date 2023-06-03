@@ -151,6 +151,12 @@ class View(QChartView):
         self.series_poincare = self.create_scatter_series(self.ORANGE, self.DOTSIZE_LARGE)
         self.axis_poincare_x = self.create_axis(title="RR_n (ms)", rangeMin=600, rangeMax=1100)
         self.axis_poincare_y = self.create_axis(title="RR_n+1 (ms)", rangeMin=600, rangeMax=1100)
+
+        # HRV spectrum
+        self.chart_hrv_spectrum = self.create_chart(title='HRV Spectrum', showTitle=True, showLegend=False, margins=QMargins(10,20,10,10))
+        self.series_hrv_spectrum = self.create_line_series(self.RED, self.LINEWIDTH)
+        self.axis_hrv_spectrum_x = self.create_axis(title="Frequency (Hz)", rangeMin=0, rangeMax=0.5)
+        self.axis_hrv_spectrum_y = self.create_axis(title="Power (ms^2/Hz)", rangeMin=0, rangeMax=1000)
         
         self.pacer_slider = QSlider(Qt.Vertical)
         self.pacer_slider.setStyleSheet("""QSlider {
@@ -236,6 +242,13 @@ class View(QChartView):
         self.chart_poincare.addAxis(self.axis_poincare_y, Qt.AlignLeft)
         self.series_poincare.attachAxis(self.axis_poincare_x)
         self.series_poincare.attachAxis(self.axis_poincare_y)
+
+        # HRV spectrum
+        self.chart_hrv_spectrum.addSeries(self.series_hrv_spectrum)
+        self.chart_hrv_spectrum.addAxis(self.axis_hrv_spectrum_x, Qt.AlignBottom)
+        self.chart_hrv_spectrum.addAxis(self.axis_hrv_spectrum_y, Qt.AlignLeft)
+        self.series_hrv_spectrum.attachAxis(self.axis_hrv_spectrum_x)
+        self.series_hrv_spectrum.attachAxis(self.axis_hrv_spectrum_y)
         
         # Create a layout
         layout = QVBoxLayout()
@@ -247,6 +260,7 @@ class View(QChartView):
         hrv_br_widget = QChartView(self.chart_hrv_br)        
         hrv_widget = QChartView(self.chart_hrv)
         poincare_widget = QChartView(self.chart_poincare)
+        hrv_spectrum_widget = QChartView(self.chart_hrv_spectrum)
 
         self.pacer_widget = PacerWidget(*self.model.pacer.update(self.pacer_rate), self.GOLD)
 
@@ -257,6 +271,7 @@ class View(QChartView):
         hrv_widget.setRenderHint(QPainter.Antialiasing)
         poincare_widget.setRenderHint(QPainter.Antialiasing)
         self.pacer_widget.setRenderHint(QPainter.Antialiasing)
+        hrv_spectrum_widget.setRenderHint(QPainter.Antialiasing)
 
         # Create QChartView widgets for both charts
         hlayout0_slider = QVBoxLayout()
@@ -275,7 +290,10 @@ class View(QChartView):
         tab2_hlayout = QHBoxLayout()
         tab2_hlayout.addWidget(br_ctrl_widget, stretch=1)
         tab2_hlayout.addWidget(hrv_br_widget, stretch=1)
-        tab2_hlayout.addWidget(poincare_widget, stretch=1)
+        vlayout_poincare = QVBoxLayout()
+        vlayout_poincare.addWidget(poincare_widget)
+        vlayout_poincare.addWidget(hrv_spectrum_widget)
+        tab2_hlayout.addLayout(vlayout_poincare, stretch=1)
 
         tab1 = QWidget()
         tab2 = QWidget()
@@ -444,10 +462,17 @@ class View(QChartView):
         self.series_hr.replace(series_hr_new)
 
         series_hr_extreme_marker_new = []
-        for i, value in enumerate(self.model.hr_extrema_ids):
-            if not value < 0:
-                series_hr_extreme_marker_new.append(QPointF(self.model.ibi_times_hist_rel_s[value], self.model.hr_values_hist[value]))
-        self.series_hr_extreme_marker.replace(series_hr_extreme_marker_new)   
+        # for i, value in enumerate(self.model.hr_extrema_ids):
+        #     if not value < 0:
+        #         series_hr_extreme_marker_new.append(QPointF(self.model.ibi_times_hist_rel_s[value], self.model.hr_values_hist[value]))
+        # self.series_hr_extreme_marker.replace(series_hr_extreme_marker_new)   
+        
+        # DEBUG: using extrema marker to instead show the interpolate values
+        for i, value in enumerate(self.model.ibi_times_interp_hist):
+            if not np.isnan(value):
+                hr_value = 60.0/(self.model.ibi_values_interp_hist[i]/1000.0)
+                series_hr_extreme_marker_new.append(QPointF(value, hr_value))
+        self.series_hr_extreme_marker.replace(series_hr_extreme_marker_new)
 
         if np.any(~np.isnan(self.model.hr_values_hist)):
             max_val = np.ceil(np.nanmax(self.model.hr_values_hist[self.model.ibi_times_hist_rel_s > -self.HR_SERIES_TIME_RANGE])/5)*5
@@ -522,6 +547,17 @@ class View(QChartView):
             min_val = np.floor(np.nanmin(self.model.ibi_values_hist)/25)*25
             self.axis_poincare_x.setRange(min_val, max_val)
             self.axis_poincare_y.setRange(min_val, max_val)
+
+        # HRV Spectrum plot
+        series_hrv_spectrum_new = []
+        for i, value in enumerate(self.model.hrv_psd_values_hist):
+            if not np.isnan(value):
+                series_hrv_spectrum_new.append(QPointF(self.model.hrv_psd_freqs_hist[i], value))
+        self.series_hrv_spectrum.replace(series_hrv_spectrum_new)
+
+        if np.any(~np.isnan(self.model.hrv_psd_values_hist)):
+            max_val = np.ceil(np.nanmax(self.model.hrv_psd_values_hist)/10)*10
+            self.axis_hrv_spectrum_y.setRange(0, max_val)
 
     async def main(self):
         await self.connect_polar()
