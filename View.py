@@ -1,9 +1,9 @@
 
 import asyncio
 from PySide6.QtCore import QTimer, Qt, QPointF, QMargins, QSize
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QSizePolicy, QSlider, QLabel, QTabWidget, QWidget
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QSizePolicy, QSlider, QLabel, QTabWidget, QWidget, QGraphicsSimpleTextItem
 from PySide6.QtCharts import QChart, QChartView, QLineSeries, QValueAxis, QScatterSeries, QSplineSeries, QAreaSeries
-from PySide6.QtGui import QPen, QColor, QPainter
+from PySide6.QtGui import QPen, QColor, QPainter, QFont
 from bleak import BleakScanner
 import time
 import numpy as np
@@ -114,7 +114,7 @@ class View(QChartView):
 
         # Heart rate chart
         self.chart_hr = self.create_chart(title='Heart rate', showTitle=False, showLegend=False)
-        self.series_hr = self.create_spline_series(self.RED, self.LINEWIDTH)
+        self.series_hr = self.create_scatter_series(self.RED, self.DOTSIZE_SMALL)
         self.series_hr_extreme_marker = self.create_scatter_series(self.GRAY, self.DOTSIZE_SMALL)
         self.axis_hr_x = self.create_axis(title="Time (s)", tickCount=10, rangeMin=-self.HR_SERIES_TIME_RANGE, rangeMax=0)
         self.axis_hr_y = self.create_axis(title="HR (bpm)", color=self.RED, rangeMin=50, rangeMax=80)
@@ -135,16 +135,18 @@ class View(QChartView):
         # Poincare plot
         self.chart_poincare = self.create_chart(title='Poincare Plot', showTitle=True, showLegend=False, margins=QMargins(10,20,10,10))
         self.series_poincare = self.create_scatter_series(self.ORANGE, self.DOTSIZE_LARGE)
-        self.axis_poincare_x = self.create_axis(title="RR_n (ms)", rangeMin=600, rangeMax=1100)
-        self.axis_poincare_y = self.create_axis(title="RR_n+1 (ms)", rangeMin=600, rangeMax=1100)
+        self.axis_poincare_x = self.create_axis(title="RR_n (ms)", rangeMin=800, rangeMax=1200)
+        self.axis_poincare_y = self.create_axis(title="RR_n+1 (ms)", rangeMin=800, rangeMax=1200)
         self.series_poincare_identity = self.create_line_series(self.ORANGE, 1, Qt.DashLine)
         self.series_poincare_identity.append([QPointF(0, 0), QPointF(1500, 1500)])
 
         # HRV spectrum
         self.chart_hrv_spectrum = self.create_chart(title='HRV Spectrum', showTitle=True, showLegend=False, margins=QMargins(10,20,10,10))
         self.series_hrv_spectrum = self.create_line_series(self.RED, self.LINEWIDTH)
+        self.series_breath_spectrum = self.create_line_series(self.BLUE, self.LINEWIDTH)
         self.axis_hrv_spectrum_x = self.create_axis(title="Frequency (Hz)", rangeMin=0, rangeMax=0.5)
-        self.axis_hrv_spectrum_y = self.create_axis(title="Power (ms^2/Hz)", rangeMin=0, rangeMax=1000)
+        self.axis_hrv_spectrum_y = self.create_axis(title="Power (s^2/Hz)", rangeMin=0, rangeMax=1)
+        self.series_pacer_line = self.create_line_series(self.GOLD, self.LINEWIDTH, Qt.DotLine)
         
         self.pacer_slider = QSlider(Qt.Vertical)
         self.pacer_slider.setStyleSheet("""QSlider {
@@ -219,10 +221,16 @@ class View(QChartView):
 
         # HRV spectrum
         self.chart_hrv_spectrum.addSeries(self.series_hrv_spectrum)
+        self.chart_hrv_spectrum.addSeries(self.series_breath_spectrum)
+        self.chart_hrv_spectrum.addSeries(self.series_pacer_line)
         self.chart_hrv_spectrum.addAxis(self.axis_hrv_spectrum_x, Qt.AlignBottom)
         self.chart_hrv_spectrum.addAxis(self.axis_hrv_spectrum_y, Qt.AlignLeft)
         self.series_hrv_spectrum.attachAxis(self.axis_hrv_spectrum_x)
         self.series_hrv_spectrum.attachAxis(self.axis_hrv_spectrum_y)
+        self.series_breath_spectrum.attachAxis(self.axis_hrv_spectrum_x)
+        self.series_breath_spectrum.attachAxis(self.axis_hrv_spectrum_y)
+        self.series_pacer_line.attachAxis(self.axis_hrv_spectrum_x)
+        self.series_pacer_line.attachAxis(self.axis_hrv_spectrum_y)
         
         # Create a layout
         layout = QVBoxLayout()
@@ -428,18 +436,11 @@ class View(QChartView):
         self.series_hr.replace(series_hr_new)
 
         series_hr_extreme_marker_new = []
-        # for i, value in enumerate(self.model.hr_extrema_ids):
-        #     if not value < 0:
-        #         series_hr_extreme_marker_new.append(QPointF(self.model.ibi_times_hist_rel_s[value], self.model.hr_values_hist[value]))
-        # self.series_hr_extreme_marker.replace(series_hr_extreme_marker_new)   
+        for i, value in enumerate(self.model.hr_extrema_ids):
+            if not value < 0:
+                series_hr_extreme_marker_new.append(QPointF(self.model.ibi_times_hist_rel_s[value], self.model.hr_values_hist[value]))
+        self.series_hr_extreme_marker.replace(series_hr_extreme_marker_new)   
         
-        # DEBUG: using extrema marker to instead show the interpolate values
-        for i, value in enumerate(self.model.ibi_times_interp_hist):
-            if not np.isnan(value):
-                hr_value = 60.0/(self.model.ibi_values_interp_hist[i]/1000.0)
-                series_hr_extreme_marker_new.append(QPointF(value, hr_value))
-        self.series_hr_extreme_marker.replace(series_hr_extreme_marker_new)
-
         if np.any(~np.isnan(self.model.hr_values_hist)):
             max_val = np.ceil(np.nanmax(self.model.hr_values_hist[self.model.ibi_times_hist_rel_s > -self.HR_SERIES_TIME_RANGE])/5)*5
             min_val = np.floor(np.nanmin(self.model.hr_values_hist[self.model.ibi_times_hist_rel_s > -self.HR_SERIES_TIME_RANGE])/5)*5
@@ -488,8 +489,12 @@ class View(QChartView):
         if np.any(~np.isnan(self.model.ibi_values_hist)):
             max_val = np.ceil(np.nanmax(self.model.ibi_values_hist)/100)*100
             min_val = np.floor(np.nanmin(self.model.ibi_values_hist)/100)*100
-            self.axis_poincare_x.setRange(min_val, max_val)
-            self.axis_poincare_y.setRange(min_val, max_val)
+            if max_val > self.axis_poincare_x.max():
+                self.axis_poincare_x.setRange(self.axis_poincare_x.min(), max_val)
+                self.axis_poincare_y.setRange(self.axis_poincare_y.min(), max_val)
+            if min_val < self.axis_poincare_x.min():
+                self.axis_poincare_x.setRange(min_val, self.axis_poincare_x.max())
+                self.axis_poincare_y.setRange(min_val, self.axis_poincare_y.max())
 
         # HRV Spectrum plot
         series_hrv_spectrum_new = []
@@ -498,9 +503,15 @@ class View(QChartView):
                 series_hrv_spectrum_new.append(QPointF(self.model.hrv_psd_freqs_hist[i], value))
         self.series_hrv_spectrum.replace(series_hrv_spectrum_new)
 
-        if np.any(~np.isnan(self.model.hrv_psd_values_hist)):
-            max_val = np.ceil(np.nanmax(self.model.hrv_psd_values_hist)/10)*10
-            self.axis_hrv_spectrum_y.setRange(0, max_val)
+        series_breath_spectrum_new = []
+        for i, value in enumerate(self.model.br_psd_values_hist):
+            if not np.isnan(value):
+                series_breath_spectrum_new.append(QPointF(self.model.br_psd_freqs_hist[i], value))
+        self.series_breath_spectrum.replace(series_breath_spectrum_new)
+
+        # Pacer line and label
+        pacer_freq = self.pacer_rate/60.0
+        self.series_pacer_line.replace([QPointF(pacer_freq, self.axis_hrv_spectrum_y.min()), QPointF(pacer_freq, self.axis_hrv_spectrum_y.max())])
 
     async def main(self):
         await self.connect_polar()

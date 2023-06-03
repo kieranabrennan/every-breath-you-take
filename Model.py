@@ -56,6 +56,9 @@ class Model:
         self.breath_acc_hist = np.full(self.BR_ACC_HIST_SIZE, np.nan)
         self.breath_acc_times = np.full(self.BR_ACC_HIST_SIZE, np.nan)
         self.breath_acc_times_rel_s = np.full(self.BR_ACC_HIST_SIZE, np.nan)
+
+        self.br_psd_freqs_hist = []
+        self.br_psd_values_hist = []
         
         self.ibi_values_hist = np.full(self.IBI_HIST_SIZE, np.nan)
         self.ibi_times_hist_rel_s = np.full(self.IBI_HIST_SIZE, np.nan) 
@@ -140,6 +143,7 @@ class Model:
         
         # Calculate HRV spectrum
         self.hrv_psd_freqs_hist, self.hrv_psd_values_hist = signal.periodogram(self.ibi_values_interp_hist, fs=1/dt, window='hann', detrend='linear')
+        self.hrv_psd_values_hist /= np.sum(self.hrv_psd_values_hist)
 
 
     async def update_ibi(self):
@@ -235,6 +239,20 @@ class Model:
 
         self.br_last_phase = current_br_phase
 
+    def update_breathing_spectrum(self):
+        if np.sum(~np.isnan(self.breath_acc_times)) < 3:
+            return
+
+        ids = self.breath_acc_times > (self.breath_acc_times[-1] - 30) # Hardcode 30 seconds
+        values = self.breath_acc_hist[ids]
+        times = self.breath_acc_times[ids]
+        dt = times[-1] - times[-2]
+
+        # Calculate the spectrum
+        self.br_psd_freqs_hist, self.br_psd_values_hist = signal.periodogram(values, fs=1/dt, window='hann', detrend='linear')
+        self.br_psd_values_hist /= np.sum(self.br_psd_values_hist)
+
+
     async def update_acc(self): # pmd: polar measurement data
         
         await self.polar_sensor.start_acc_stream()
@@ -271,5 +289,6 @@ class Model:
                     self.t_last_breath_acc_update = t
                 
                 self.update_breathing_rate()
+                self.update_breathing_spectrum()
 
     
