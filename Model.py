@@ -24,11 +24,10 @@ class Model:
         self.BR_ACC_SAMPLE_RATE = 10 # Hz, rate to subsample breathing acceleration
         
         # History sizes
-        self.ACC_HIST_SIZE = 1200 # 60 seconds of data
-        self.BR_ACC_HIST_SIZE = 600 # 60 seconds of data
-        self.IBI_HIST_SIZE = 300 # roughly number of seconds (assuming 60 bpm avg)
-        self.HRV_HIST_SIZE = 300 
-        self.BR_HIST_SIZE = 300 # Fast breathing 30 bpm, sampled twice every breathing cycle, over 5 minutes this is 300 values
+        self.BR_ACC_HIST_SIZE = 1200 # 
+        self.IBI_HIST_SIZE = 400 # roughly number of seconds (assuming 60 bpm avg)
+        self.HRV_HIST_SIZE = 250 
+        self.BR_HIST_SIZE = 250 # Fast breathing 20 breaths per minute, sampled once every breathing cycle, over 10 minutes this is 200 values
 
         # Accelerometer signal parameters
         self.GRAVITY_ALPHA = 0.999 # Exponential mean filter for gravity
@@ -61,13 +60,16 @@ class Model:
         self.ibi_times_hist_rel_s = np.full(self.IBI_HIST_SIZE, np.nan) 
         self.hr_values_hist = np.full(self.IBI_HIST_SIZE, np.nan)
         
-        self.hrv_values_hist = np.full(self.HRV_HIST_SIZE, np.nan)
+        self.hrv_values_hist = np.full(self.HRV_HIST_SIZE, np.nan) # HR range based on local IBI extrema
         self.hrv_times_hist = np.arange(-self.HRV_HIST_SIZE, 0) 
         
         self.br_values_hist = np.full(self.BR_HIST_SIZE, np.nan)
         self.br_times_hist = np.full(self.BR_HIST_SIZE, np.nan) 
         self.br_times_hist_rel_s = np.full(self.BR_HIST_SIZE, np.nan) 
         
+        self.rmssd_values_hist = np.full(self.BR_HIST_SIZE, np.nan)
+        self.maxmin_values_hist = np.full(self.BR_HIST_SIZE, np.nan) # Max-min HR in a breathing cycle
+
         self.br_pace_values_hist = np.full(self.BR_HIST_SIZE, np.nan)
         self.hrv_br_interp_values_hist = np.full(self.BR_HIST_SIZE, np.nan)
 
@@ -173,6 +175,12 @@ class Model:
 
             self.br_times_hist = np.roll(self.br_times_hist, -1)
             self.br_times_hist[-1] = self.breath_acc_times[-1]
+
+            self.rmssd_values_hist = np.roll(self.rmssd_values_hist, -1)
+            self.rmssd_values_hist[-1] = 0
+
+            self.maxmin_values_hist = np.roll(self.maxmin_values_hist, -1)
+            self.maxmin_values_hist[-1] = 0
         else:
             # Calculate the breathing rate
             seconds_current_phase = self.breath_acc_times[-1] - self.br_times_hist[-1]
@@ -194,6 +202,19 @@ class Model:
 
             self.br_times_hist = np.roll(self.br_times_hist, -1)
             self.br_times_hist[-1] = self.breath_acc_times[-1]
+
+            # Update the RMSSD history
+            ibi_indices_in_cycle = self.ibi_times_hist_rel_s > (self.br_times_hist[-2] - time.time_ns()/1.0e9)
+            ibi_ssd = self.ibi_values_hist[ibi_indices_in_cycle] - self.ibi_values_hist[np.roll(ibi_indices_in_cycle, -1)]
+            rmssd = np.sqrt(np.mean(ibi_ssd**2))
+            self.rmssd_values_hist = np.roll(self.rmssd_values_hist, -1)
+            self.rmssd_values_hist[-1] = rmssd
+
+            # Update the max-min history
+            maxmin = np.max(self.ibi_values_hist[ibi_indices_in_cycle]) - np.min(self.ibi_values_hist[ibi_indices_in_cycle])
+            self.maxmin_values_hist = np.roll(self.maxmin_values_hist, -1)
+            self.maxmin_values_hist[-1] = maxmin
+
 
         self.br_last_phase = current_br_phase
 
