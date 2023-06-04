@@ -503,9 +503,14 @@ class View(QChartView):
                 series_hrv_spectrum_new.append(QPointF(self.model.hrv_psd_freqs_hist[i], value))
         self.series_hrv_spectrum.replace(series_hrv_spectrum_new)
 
+        title_str = "Power Spectrum"
+        if not np.isnan(self.model.br_coherence):
+            color = self.RED.name() if self.model.br_coherence < 0.15 else self.ORANGE.name() if self.model.br_coherence < 0.4 else self.GREEN.name()
+            title_str = "<font color='{}'>BR Coherence: {:4.2f}</font>".format(color, self.model.br_coherence)
         if not np.isnan(self.model.hr_coherence):
             color = self.RED.name() if self.model.hr_coherence < 0.15 else self.ORANGE.name() if self.model.hr_coherence < 0.4 else self.GREEN.name()
-            self.chart_hrv_spectrum.setTitle("<font color='{}'>HR Coherence: {:.2f}</font>".format(color, self.model.hr_coherence))
+            title_str += "<br><font color='{}'>HR Coherence: {:4.2f}</font>".format(color, self.model.hr_coherence)
+        self.chart_hrv_spectrum.setTitle(title_str)
 
         series_breath_spectrum_new = []
         for i, value in enumerate(self.model.br_psd_values_hist):

@@ -73,6 +73,7 @@ class Model:
         self.hrv_psd_values_hist = []
 
         self.hr_coherence = np.nan
+        self.br_coherence = np.nan
         
         self.br_values_hist = np.full(self.BR_HIST_SIZE, np.nan)
         self.br_times_hist = np.full(self.BR_HIST_SIZE, np.nan) 
@@ -134,9 +135,14 @@ class Model:
         self.ibi_last_phase = current_ibi_phase
 
     def update_hrv_spectrum(self):
-        # Interpolate ibi at fixed intervals with interval size as the smallest ibi
-        values = self.ibi_values_hist[~np.isnan(self.ibi_values_hist)]
-        times = self.ibi_times_hist_rel_s[~np.isnan(self.ibi_times_hist_rel_s)][1:]
+        
+        # Taking only last 30 seconds
+        ids = self.ibi_times_hist_rel_s > (self.ibi_times_hist_rel_s[-1] - 30) # Hardcode 30 seconds
+        ids = np.logical_and(ids, ~np.isnan(self.ibi_values_hist))
+        
+        # Interpolate with fixed interval
+        values = self.ibi_values_hist[ids]
+        times = self.ibi_times_hist_rel_s[ids]
         t_start = times[0] 
         t_end = times[-1]
         dt = 60.0/90.0 # Assume a max of 90 bpm, maximum of 0.75 Hz
@@ -158,8 +164,6 @@ class Model:
         peak_power = np.trapz(hrv_psd_interp[peak_indices], hrv_psd_freqs_interp[peak_indices])
 
         self.hr_coherence = peak_power/total_power
-
-
 
     async def update_ibi(self):
         await self.polar_sensor.start_hr_stream()
@@ -266,6 +270,18 @@ class Model:
         # Calculate the spectrum
         self.br_psd_freqs_hist, self.br_psd_values_hist = signal.periodogram(values, fs=1/dt, window='hann', detrend='linear')
         self.br_psd_values_hist /= np.sum(self.br_psd_values_hist)
+
+        # Interpolating the power spectral density, to get sub-bin integration
+        br_psd_freqs_interp = np.arange(self.br_psd_freqs_hist[0], self.br_psd_freqs_hist[-1], 0.005)
+        br_psd_interp = np.interp(br_psd_freqs_interp, self.br_psd_freqs_hist, self.br_psd_values_hist)
+        
+        # Calculating total power and peak power
+        pacer_freq = self.pacer.last_breathing_rate/60.0
+        total_power = np.trapz(br_psd_interp, br_psd_freqs_interp)
+        peak_indices = np.where((br_psd_freqs_interp >= pacer_freq - 0.015) & (br_psd_freqs_interp <= pacer_freq + 0.015)) # 0.03 Hz around the peak is recommended by R. McCraty
+        peak_power = np.trapz(br_psd_interp[peak_indices], br_psd_freqs_interp[peak_indices])
+
+        self.br_coherence = peak_power/total_power
 
 
     async def update_acc(self): # pmd: polar measurement data
