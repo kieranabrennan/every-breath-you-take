@@ -71,6 +71,8 @@ class Model:
 
         self.hrv_psd_freqs_hist = []
         self.hrv_psd_values_hist = []
+
+        self.hr_coherence = np.nan
         
         self.br_values_hist = np.full(self.BR_HIST_SIZE, np.nan)
         self.br_times_hist = np.full(self.BR_HIST_SIZE, np.nan) 
@@ -137,13 +139,26 @@ class Model:
         times = self.ibi_times_hist_rel_s[~np.isnan(self.ibi_times_hist_rel_s)][1:]
         t_start = times[0] 
         t_end = times[-1]
-        dt = np.amin(values)/1000.0/2.0
+        dt = 60.0/90.0 # Assume a max of 90 bpm, maximum of 0.75 Hz
         self.ibi_times_interp_hist = np.arange(t_start, t_end+dt, dt)
         self.ibi_values_interp_hist = np.interp(self.ibi_times_interp_hist, times, values)
         
         # Calculate HRV spectrum
         self.hrv_psd_freqs_hist, self.hrv_psd_values_hist = signal.periodogram(self.ibi_values_interp_hist, fs=1/dt, window='hann', detrend='linear')
         self.hrv_psd_values_hist /= np.sum(self.hrv_psd_values_hist)
+
+        # Interpolating the power spectral density, to get sub-bin integration
+        hrv_psd_freqs_interp = np.arange(self.hrv_psd_freqs_hist[0], self.hrv_psd_freqs_hist[-1], 0.005)
+        hrv_psd_interp = np.interp(hrv_psd_freqs_interp, self.hrv_psd_freqs_hist, self.hrv_psd_values_hist)
+        
+        # Calculating total power and peak power
+        pacer_freq = self.pacer.last_breathing_rate/60.0
+        total_power = np.trapz(hrv_psd_interp, hrv_psd_freqs_interp)
+        peak_indices = np.where((hrv_psd_freqs_interp >= pacer_freq - 0.015) & (hrv_psd_freqs_interp <= pacer_freq + 0.015)) # 0.03 Hz around the peak is recommended by R. McCraty
+        peak_power = np.trapz(hrv_psd_interp[peak_indices], hrv_psd_freqs_interp[peak_indices])
+
+        self.hr_coherence = peak_power/total_power
+
 
 
     async def update_ibi(self):
