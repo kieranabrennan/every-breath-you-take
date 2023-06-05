@@ -492,6 +492,17 @@ class View(QChartView):
                 self.axis_poincare_x.setRange(min_val, self.axis_poincare_x.max())
                 self.axis_poincare_y.setRange(min_val, self.axis_poincare_y.max())
 
+        title_str = "Poincare plot"
+        maxmin_last = self.model.maxmin_values_hist[-1]
+        rmssd_last = self.model.rmssd_values_hist[-1]
+        if not np.isnan(maxmin_last):
+            color = self.RED.name() if maxmin_last < 50 else self.ORANGE.name() if maxmin_last < 150 else self.GREEN.name()
+            title_str = "<font color='{}'>Max-min: {:.0f} ms</font>".format(color, maxmin_last)
+        if not np.isnan(rmssd_last):
+            color = self.RED.name() if rmssd_last < 10 else self.ORANGE.name() if rmssd_last < 40 else self.GREEN.name()
+            title_str += "<br><font color='{}'>RMSSD: {:.0f} ms</font>".format(color, rmssd_last)
+        self.chart_poincare.setTitle(title_str)
+
         # HRV Spectrum plot
         series_hrv_spectrum_new = []
         for i, value in enumerate(self.model.hrv_psd_values_hist):
