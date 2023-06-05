@@ -134,11 +134,12 @@ class View(QChartView):
 
         # Poincare plot
         self.chart_poincare = self.create_chart(title='Poincare Plot', showTitle=True, showLegend=False, margins=QMargins(10,20,10,10))
-        self.series_poincare = self.create_scatter_series(self.ORANGE, self.DOTSIZE_LARGE)
+        self.series_poincare = self.create_scatter_series(self.RED, self.DOTSIZE_SMALL)
         self.axis_poincare_x = self.create_axis(title="RR_n (ms)", rangeMin=800, rangeMax=1200)
         self.axis_poincare_y = self.create_axis(title="RR_n+1 (ms)", rangeMin=800, rangeMax=1200)
-        self.series_poincare_identity = self.create_line_series(self.ORANGE, 1, Qt.DashLine)
+        self.series_poincare_identity = self.create_line_series(self.RED, 1, Qt.DashLine)
         self.series_poincare_identity.append([QPointF(0, 0), QPointF(1500, 1500)])
+        self.series_poincare_last_cycle = self.create_spline_series(self.BLUE, self.LINEWIDTH)
 
         # HRV spectrum
         self.chart_hrv_spectrum = self.create_chart(title='HRV Spectrum', showTitle=True, showLegend=False, margins=QMargins(10,20,10,10))
@@ -212,12 +213,15 @@ class View(QChartView):
         # Poincare
         self.chart_poincare.addSeries(self.series_poincare)
         self.chart_poincare.addSeries(self.series_poincare_identity)
+        self.chart_poincare.addSeries(self.series_poincare_last_cycle)
         self.chart_poincare.addAxis(self.axis_poincare_x, Qt.AlignBottom)
         self.chart_poincare.addAxis(self.axis_poincare_y, Qt.AlignLeft)
         self.series_poincare.attachAxis(self.axis_poincare_x)
         self.series_poincare.attachAxis(self.axis_poincare_y)
         self.series_poincare_identity.attachAxis(self.axis_poincare_x)
         self.series_poincare_identity.attachAxis(self.axis_poincare_y)
+        self.series_poincare_last_cycle.attachAxis(self.axis_poincare_x)
+        self.series_poincare_last_cycle.attachAxis(self.axis_poincare_y)
 
         # HRV spectrum
         self.chart_hrv_spectrum.addSeries(self.series_hrv_spectrum)
@@ -261,33 +265,17 @@ class View(QChartView):
         hlayout0.addWidget(self.pacer_widget)
         hlayout0.addWidget(acc_widget)
 
-        tab1_vlayout = QVBoxLayout()
-        tab1_vlayout.addWidget(hr_widget, stretch=1)
-        tab1_vlayout.addWidget(hrv_widget, stretch=1)
+        hlayout1 = QHBoxLayout()
+        hlayout1.addWidget(hrv_spectrum_widget, stretch=1)
+        hlayout1.addWidget(hr_widget, stretch=2)
 
-        tab2_hlayout = QHBoxLayout()
-        tab2_hlayout.addWidget(hrv_spectrum_widget, stretch=1)
-        tab2_hlayout.addWidget(poincare_widget, stretch=1)
-    
-        tab1 = QWidget()
-        tab2 = QWidget()
-        tab1.setLayout(tab1_vlayout)
-        tab2.setLayout(tab2_hlayout)
-        tab_widget.addTab(tab1, "Biofeeback")
-        tab_widget.addTab(tab2, "Analysis")
-        tab_widget.setStyleSheet("""
-            QTabBar::tab:selected {
-                background: lightgray;
-                color: black;
-            }
-            QTabBar::tab:!selected {
-                background: QColor(34, 34, 34);
-                color: white;
-            }
-        """)
+        hlayout2 = QHBoxLayout()
+        hlayout2.addWidget(poincare_widget, stretch=1)
+        hlayout2.addWidget(hrv_widget, stretch=2)
 
         layout.addLayout(hlayout0, stretch=1)
-        layout.addWidget(tab_widget, stretch=2.5)
+        layout.addLayout(hlayout1, stretch=1)
+        layout.addLayout(hlayout2, stretch=1)
         self.setLayout(layout)
 
         # Kick off the timer
@@ -485,6 +473,14 @@ class View(QChartView):
             if not np.isnan(value):
                 series_poincare_new.append(QPointF(value, self.model.ibi_values_hist[i+1]))
         self.series_poincare.replace(series_poincare_new)
+
+        if len(self.model.ibi_values_last_cycle) > 2:
+            series_poincare_last_new = []
+            for i, value in enumerate(self.model.ibi_values_last_cycle[:-1]):
+                if not np.isnan(value):
+                    series_poincare_last_new.append(QPointF(value, self.model.ibi_values_last_cycle[i+1]))
+            series_poincare_last_new.append(QPointF(self.model.ibi_values_last_cycle[0], self.model.ibi_values_last_cycle[1])) # Close the loop
+            self.series_poincare_last_cycle.replace(series_poincare_last_new)
 
         if np.any(~np.isnan(self.model.ibi_values_hist)):
             max_val = np.ceil(np.nanmax(self.model.ibi_values_hist)/100)*100

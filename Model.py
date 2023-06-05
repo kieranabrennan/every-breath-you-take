@@ -64,6 +64,7 @@ class Model:
         self.ibi_times_hist_rel_s = np.full(self.IBI_HIST_SIZE, np.nan) 
         self.ibi_values_interp_hist = [] # Interpolated IBI values
         self.ibi_times_interp_hist = [] # Interpolated IBI times
+        self.ibi_values_last_cycle = [] # IBI values in the last breathing cycle
         self.hr_values_hist = np.full(self.IBI_HIST_SIZE, np.nan)
         
         self.hrv_values_hist = np.full(self.HRV_HIST_SIZE, np.nan) # HR range based on local IBI extrema
@@ -245,6 +246,7 @@ class Model:
 
             # Update the RMSSD history
             ibi_indices_in_cycle = self.ibi_times_hist_rel_s > (self.br_times_hist[-2] - time.time_ns()/1.0e9)
+            self.ibi_values_last_cycle = self.ibi_values_hist[ibi_indices_in_cycle]
             ibi_ssd = self.ibi_values_hist[ibi_indices_in_cycle] - self.ibi_values_hist[np.roll(ibi_indices_in_cycle, -1)]
             rmssd = np.sqrt(np.mean(ibi_ssd**2))
             self.rmssd_values_hist = np.roll(self.rmssd_values_hist, -1)
