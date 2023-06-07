@@ -1,9 +1,9 @@
 
 import asyncio
 from PySide6.QtCore import QTimer, Qt, QPointF, QMargins, QSize
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QSizePolicy, QSlider, QLabel, QTabWidget, QWidget, QGraphicsSimpleTextItem
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QSizePolicy, QSlider, QLabel, QSpacerItem
 from PySide6.QtCharts import QChart, QChartView, QLineSeries, QValueAxis, QScatterSeries, QSplineSeries, QAreaSeries
-from PySide6.QtGui import QPen, QColor, QPainter, QFont
+from PySide6.QtGui import QPen, QColor, QPainter
 from bleak import BleakScanner
 import time
 import numpy as np
@@ -11,9 +11,6 @@ from Model import Model
 
 '''
 TODO: 
-- Indicate what good looks like on each graph – high HRV
-- Explore other HRV calculations
-- Tidy the view initialisation
 - Abstract the historic series type
 - Exit the program nicely
 '''
@@ -109,14 +106,12 @@ class View(QChartView):
         self.series_breath_acc = self.create_line_series(self.BLUE, self.LINEWIDTH)
         self.series_breath_cycle_marker = self.create_scatter_series(self.GRAY, self.DOTSIZE_SMALL)
         self.axis_acc_x = self.create_axis(title="Time (s)", tickCount=10, rangeMin=-self.BREATH_ACC_TIME_RANGE, rangeMax=0)
-        self.axis_y_pacer = self.create_axis(title="Pacer", color=self.GOLD, rangeMin=-1, rangeMax=2)
-        self.axis_y_breath_acc = self.create_axis("Breath accel. (m/s)", self.BLUE, rangeMin=-1, rangeMax=1)
+        # self.axis_y_pacer = self.create_axis(title="Pacer", color=self.GOLD, rangeMin=-1, rangeMax=1)
+        self.axis_y_breath_acc = self.create_axis("Breath (m/s2)", self.BLUE, rangeMin=-1, rangeMax=1)
 
         # Heart rate chart
         self.chart_hr = self.create_chart(title='Heart rate', showTitle=False, showLegend=False)
         self.series_hr = self.create_scatter_series(self.RED, self.DOTSIZE_SMALL)
-        self.series_hr_extreme_marker = self.create_scatter_series(self.GRAY, self.DOTSIZE_SMALL)
-        self.axis_hr_x = self.create_axis(title="Time (s)", tickCount=10, rangeMin=-self.HR_SERIES_TIME_RANGE, rangeMax=0)
         self.axis_hr_y = self.create_axis(title="HR (bpm)", color=self.RED, rangeMin=50, rangeMax=80)
 
         # Breathing rate
@@ -166,27 +161,20 @@ class View(QChartView):
         
         # Configure
         self.chart_acc.addSeries(self.series_pacer)
-        self.chart_acc.addAxis(self.axis_acc_x, Qt.AlignBottom)
-        self.chart_acc.addAxis(self.axis_y_pacer, Qt.AlignLeft)
-        self.series_pacer.attachAxis(self.axis_acc_x)
-        self.series_pacer.attachAxis(self.axis_y_pacer)
         self.chart_acc.addSeries(self.series_breath_acc)
         self.chart_acc.addSeries(self.series_breath_cycle_marker)
+        self.chart_acc.addSeries(self.series_hr)
+        self.chart_acc.addAxis(self.axis_acc_x, Qt.AlignBottom)
         self.chart_acc.addAxis(self.axis_y_breath_acc, Qt.AlignRight)
+        self.chart_acc.addAxis(self.axis_hr_y, Qt.AlignLeft)
+        self.series_pacer.attachAxis(self.axis_acc_x)
+        self.series_pacer.attachAxis(self.axis_y_breath_acc)
         self.series_breath_acc.attachAxis(self.axis_acc_x)
         self.series_breath_acc.attachAxis(self.axis_y_breath_acc)
         self.series_breath_cycle_marker.attachAxis(self.axis_acc_x)
         self.series_breath_cycle_marker.attachAxis(self.axis_y_breath_acc)
-
-        # Heart rate chart
-        self.chart_hr.addSeries(self.series_hr)
-        self.chart_hr.addSeries(self.series_hr_extreme_marker)
-        self.chart_hr.addAxis(self.axis_hr_x, Qt.AlignBottom)
-        self.chart_hr.addAxis(self.axis_hr_y, Qt.AlignLeft)
-        self.series_hr.attachAxis(self.axis_hr_x)
+        self.series_hr.attachAxis(self.axis_acc_x)
         self.series_hr.attachAxis(self.axis_hr_y)
-        self.series_hr_extreme_marker.attachAxis(self.axis_hr_x)
-        self.series_hr_extreme_marker.attachAxis(self.axis_hr_y)
 
         # Heart rate variability chart
         # self.chart_hrv.addSeries(self.series_hrv)
@@ -238,10 +226,8 @@ class View(QChartView):
         
         # Create a layout
         layout = QVBoxLayout()
-        tab_widget = QTabWidget()
 
         acc_widget = QChartView(self.chart_acc)
-        hr_widget = QChartView(self.chart_hr)      
         hrv_widget = QChartView(self.chart_hrv)
         poincare_widget = QChartView(self.chart_poincare)
         hrv_spectrum_widget = QChartView(self.chart_hrv_spectrum)
@@ -249,7 +235,6 @@ class View(QChartView):
         self.pacer_widget = PacerWidget(*self.model.pacer.update(self.pacer_rate), self.GOLD)
 
         acc_widget.setRenderHint(QPainter.Antialiasing)
-        hr_widget.setRenderHint(QPainter.Antialiasing)
         hrv_widget.setRenderHint(QPainter.Antialiasing)
         poincare_widget.setRenderHint(QPainter.Antialiasing)
         self.pacer_widget.setRenderHint(QPainter.Antialiasing)
@@ -261,14 +246,33 @@ class View(QChartView):
         hlayout0_slider.addWidget(self.pacer_label)
 
         hlayout0 = QHBoxLayout()
-        hlayout0.addLayout(hlayout0_slider)
-        hlayout0.addWidget(self.pacer_widget)
-        hlayout0.addWidget(acc_widget)
+        hlayout0.addWidget(acc_widget, stretch=2)
+        hlayout0.addWidget(hrv_spectrum_widget, stretch=1)
 
+        # Create the left and right labels
+        self.left_label = QLabel()
+        self.left_label.setAlignment(Qt.AlignCenter)
+        self.left_label.setText("<html><font size='10'>Variability</font><br><br><font size='6'>Line 1<br><br>Line 2</font></html>")
+        self.left_label.setStyleSheet("color: black;")
+
+        self.right_label = QLabel()
+        self.right_label.setAlignment(Qt.AlignCenter)
+        self.right_label.setText("<html><font size='10'>Coherence</font><br><br><font size='6'>Line 1<br><br>Line 2</font></html>")
+        self.right_label.setStyleSheet("color: black;")
+        left_spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        right_spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+        # Create the horizontal layout and add the widgets
         hlayout1 = QHBoxLayout()
-        hlayout1.addWidget(hrv_spectrum_widget, stretch=1)
-        hlayout1.addWidget(hr_widget, stretch=2)
-
+        hlayout1.addItem(left_spacer)
+        hlayout1.addWidget(self.left_label)
+        hlayout1.addItem(right_spacer)
+        hlayout1.addLayout(hlayout0_slider)
+        hlayout1.addWidget(self.pacer_widget)
+        hlayout1.addItem(left_spacer)
+        hlayout1.addWidget(self.right_label)
+        hlayout1.addItem(right_spacer)
+        
         hlayout2 = QHBoxLayout()
         hlayout2.addWidget(poincare_widget, stretch=1)
         hlayout2.addWidget(hrv_widget, stretch=2)
@@ -360,7 +364,7 @@ class View(QChartView):
         self.pacer_widget.update_series(*coordinates)
 
         self.pacer_values_hist = np.roll(self.pacer_values_hist, -1)
-        self.pacer_values_hist[-1] = np.linalg.norm([coordinates[0][0],coordinates[1][0]])
+        self.pacer_values_hist[-1] = np.linalg.norm([coordinates[0][0],coordinates[1][0]]) - 0.5
         self.pacer_times_hist = np.roll(self.pacer_times_hist, -1)
         self.pacer_times_hist[-1] = time.time_ns()/1.0e9
 
@@ -422,12 +426,6 @@ class View(QChartView):
             if not np.isnan(value):
                 series_hr_new.append(QPointF(self.model.ibi_times_hist_rel_s[i], value))
         self.series_hr.replace(series_hr_new)
-
-        series_hr_extreme_marker_new = []
-        for i, value in enumerate(self.model.hr_extrema_ids):
-            if not value < 0:
-                series_hr_extreme_marker_new.append(QPointF(self.model.ibi_times_hist_rel_s[value], self.model.hr_values_hist[value]))
-        self.series_hr_extreme_marker.replace(series_hr_extreme_marker_new)   
         
         if np.any(~np.isnan(self.model.hr_values_hist)):
             max_val = np.ceil(np.nanmax(self.model.hr_values_hist[self.model.ibi_times_hist_rel_s > -self.HR_SERIES_TIME_RANGE])/5)*5
@@ -492,16 +490,16 @@ class View(QChartView):
                 self.axis_poincare_x.setRange(min_val, self.axis_poincare_x.max())
                 self.axis_poincare_y.setRange(min_val, self.axis_poincare_y.max())
 
-        title_str = "Poincare plot"
+        title_str = "<font size='10'>Variability</font><br><br>"
         maxmin_last = self.model.maxmin_values_hist[-1]
         rmssd_last = self.model.rmssd_values_hist[-1]
         if not np.isnan(maxmin_last):
             color = self.RED.name() if maxmin_last < 50 else self.ORANGE.name() if maxmin_last < 150 else self.GREEN.name()
-            title_str = "<font color='{}'>Max-min: {:.0f} ms</font>".format(color, maxmin_last)
+            title_str = "<font color='{}'>Depth: {:.0f} ms</font>".format(color, maxmin_last)
         if not np.isnan(rmssd_last):
             color = self.RED.name() if rmssd_last < 10 else self.ORANGE.name() if rmssd_last < 40 else self.GREEN.name()
-            title_str += "<br><font color='{}'>RMSSD: {:.0f} ms</font>".format(color, rmssd_last)
-        self.chart_poincare.setTitle(title_str)
+            title_str += "<br><font color='{}'>Width: {:.0f} ms</font>".format(color, rmssd_last)
+        self.left_label.setText(title_str)
 
         # HRV Spectrum plot
         series_hrv_spectrum_new = []
@@ -510,14 +508,14 @@ class View(QChartView):
                 series_hrv_spectrum_new.append(QPointF(self.model.hrv_psd_freqs_hist[i], value))
         self.series_hrv_spectrum.replace(series_hrv_spectrum_new)
 
-        title_str = "Power Spectrum"
+        title_str = "<font size='10'>Coherence</font><br><br>"
         if not np.isnan(self.model.br_coherence):
             color = self.RED.name() if self.model.br_coherence < 0.15 else self.ORANGE.name() if self.model.br_coherence < 0.4 else self.GREEN.name()
-            title_str = "<font color='{}'>BR Coherence: {:4.2f}</font>".format(color, self.model.br_coherence)
+            title_str = "<font color='{}'>Breathing: {:4.2f}</font>".format(color, self.model.br_coherence)
         if not np.isnan(self.model.hr_coherence):
             color = self.RED.name() if self.model.hr_coherence < 0.15 else self.ORANGE.name() if self.model.hr_coherence < 0.4 else self.GREEN.name()
-            title_str += "<br><font color='{}'>HR Coherence: {:4.2f}</font>".format(color, self.model.hr_coherence)
-        self.chart_hrv_spectrum.setTitle(title_str)
+            title_str += "<br><font color='{}'>Heart rate: {:4.2f}</font>".format(color, self.model.hr_coherence)
+        self.right_label.setText(title_str)
 
         series_breath_spectrum_new = []
         for i, value in enumerate(self.model.br_psd_values_hist):
