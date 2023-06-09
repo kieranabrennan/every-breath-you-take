@@ -3,7 +3,7 @@ import asyncio
 from PySide6.QtCore import QTimer, Qt, QPointF, QMargins, QSize
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QSizePolicy, QSlider, QLabel, QSpacerItem
 from PySide6.QtCharts import QChart, QChartView, QLineSeries, QValueAxis, QScatterSeries, QSplineSeries, QAreaSeries
-from PySide6.QtGui import QPen, QColor, QPainter
+from PySide6.QtGui import QPen, QColor, QPainter, QFont
 from bleak import BleakScanner
 import time
 import numpy as np
@@ -25,6 +25,9 @@ class PacerWidget(QChartView):
                 QSizePolicy.Preferred,
             )
         )
+        
+        self.scene().setBackgroundBrush(Qt.white)
+        self.setAlignment(Qt.AlignCenter)
 
         self.plot = QChart()
         self.plot.legend().setVisible(False)
@@ -105,46 +108,46 @@ class View(QChartView):
         self.series_pacer = self.create_line_series(self.GOLD, self.LINEWIDTH)
         self.series_breath_acc = self.create_line_series(self.BLUE, self.LINEWIDTH)
         self.series_breath_cycle_marker = self.create_scatter_series(self.GRAY, self.DOTSIZE_SMALL)
-        self.axis_acc_x = self.create_axis(title="Time (s)", tickCount=10, rangeMin=-self.BREATH_ACC_TIME_RANGE, rangeMax=0)
+        self.axis_acc_x = self.create_axis(title=None, tickCount=10, rangeMin=-self.BREATH_ACC_TIME_RANGE, rangeMax=0, labelSize=10)
         # self.axis_y_pacer = self.create_axis(title="Pacer", color=self.GOLD, rangeMin=-1, rangeMax=1)
-        self.axis_y_breath_acc = self.create_axis("Breath (m/s2)", self.BLUE, rangeMin=-1, rangeMax=1)
+        self.axis_y_breath_acc = self.create_axis("Breath (m/s2)", self.BLUE, rangeMin=-1, rangeMax=1, labelSize=10)
 
         # Heart rate chart
         self.chart_hr = self.create_chart(title='Heart rate', showTitle=False, showLegend=False)
         self.series_hr = self.create_scatter_series(self.RED, self.DOTSIZE_SMALL)
-        self.axis_hr_y = self.create_axis(title="HR (bpm)", color=self.RED, rangeMin=50, rangeMax=80)
+        self.axis_hr_y = self.create_axis(title="HR (bpm)", color=self.RED, rangeMin=50, rangeMax=80, labelSize=10)
 
         # Breathing rate
         self.series_br = self.create_spline_series(self.BLUE, self.LINEWIDTH)
         self.series_br_marker = self.create_scatter_series(self.GRAY, self.DOTSIZE_SMALL)
-        self.axis_br_y = self.create_axis(title="BR (bpm)", color=self.BLUE, rangeMin=0, rangeMax=20)
+        self.axis_br_y = self.create_axis(title="BR (bpm)", color=self.BLUE, rangeMin=0, rangeMax=20, labelSize=10)
         
         # Heart rate variability chart
         self.chart_hrv = self.create_chart(title='Heart rate variability', showTitle=False, showLegend=False)
         # self.series_hrv = self.create_spline_series(self.RED, self.LINEWIDTH)
         self.series_rmssd = self.create_spline_series(self.YELLOW, self.LINEWIDTH)
         self.series_maxmin = self.create_spline_series(self.RED, self.LINEWIDTH)
-        self.axis_hrv_x = self.create_axis(title="Time (s)", tickCount=10, rangeMin=-self.HRV_SERIES_TIME_RANGE, rangeMax=0)
-        self.axis_hrv_y = self.create_axis(title="HRV (ms)", color=self.RED, rangeMin=0, rangeMax=250)
+        self.axis_hrv_x = self.create_axis(title=None, tickCount=10, rangeMin=-self.HRV_SERIES_TIME_RANGE, rangeMax=0, labelSize=10)
+        self.axis_hrv_y = self.create_axis(title="HRV (ms)", color=self.RED, rangeMin=0, rangeMax=250, labelSize=10)
 
         # Poincare plot
-        self.chart_poincare = self.create_chart(title='Poincare Plot', showTitle=True, showLegend=False, margins=QMargins(10,20,10,10))
+        self.chart_poincare = self.create_chart(title='Poincare Plot', showTitle=True, showLegend=False, margins=QMargins(0,0,0,0))
         self.series_poincare = self.create_scatter_series(self.RED, self.DOTSIZE_SMALL)
-        self.axis_poincare_x = self.create_axis(title="RR_n (ms)", rangeMin=800, rangeMax=1200)
-        self.axis_poincare_y = self.create_axis(title="RR_n+1 (ms)", rangeMin=800, rangeMax=1200)
+        self.axis_poincare_x = self.create_axis(title="RR_n (ms)", rangeMin=800, rangeMax=1200, labelSize=10)
+        self.axis_poincare_y = self.create_axis(title="RR_n+1 (ms)", rangeMin=800, rangeMax=1200, labelSize=10)
         self.series_poincare_identity = self.create_line_series(self.RED, 1, Qt.DashLine)
         self.series_poincare_identity.append([QPointF(0, 0), QPointF(1500, 1500)])
         self.series_poincare_last_cycle = self.create_spline_series(self.BLUE, self.LINEWIDTH)
 
         # HRV spectrum
-        self.chart_hrv_spectrum = self.create_chart(title='HRV Spectrum', showTitle=True, showLegend=False, margins=QMargins(10,20,10,10))
+        self.chart_hrv_spectrum = self.create_chart(title='HRV Spectrum', showTitle=True, showLegend=False, margins=QMargins(0,0,0,0))
         self.series_hrv_spectrum = self.create_line_series(self.RED, self.LINEWIDTH)
         self.series_breath_spectrum = self.create_line_series(self.BLUE, self.LINEWIDTH)
-        self.axis_hrv_spectrum_x = self.create_axis(title="Frequency (Hz)", rangeMin=0, rangeMax=0.5)
-        self.axis_hrv_spectrum_y = self.create_axis(title="Power (s^2/Hz)", rangeMin=0, rangeMax=1)
+        self.axis_hrv_spectrum_x = self.create_axis(title="Frequency (Hz)", rangeMin=0, rangeMax=0.5, labelSize=10)
+        self.axis_hrv_spectrum_y = self.create_axis(title="Power (s^2/Hz)", rangeMin=0, rangeMax=1, labelSize=10)
         self.series_pacer_line = self.create_line_series(self.GOLD, self.LINEWIDTH, Qt.DotLine)
         
-        self.pacer_slider = QSlider(Qt.Vertical)
+        self.pacer_slider = QSlider(Qt.Horizontal)
         self.pacer_slider.setStyleSheet("""QSlider {
             border: 1px solid #aaa;
         }
@@ -228,9 +231,13 @@ class View(QChartView):
         layout = QVBoxLayout()
 
         acc_widget = QChartView(self.chart_acc)
+        acc_widget.setStyleSheet("background-color: transparent;")
         hrv_widget = QChartView(self.chart_hrv)
+        hrv_widget.setStyleSheet("background-color: transparent;")
         poincare_widget = QChartView(self.chart_poincare)
+        poincare_widget.setStyleSheet("background-color: transparent;")
         hrv_spectrum_widget = QChartView(self.chart_hrv_spectrum)
+        hrv_spectrum_widget.setStyleSheet("background-color: transparent;")
 
         self.pacer_widget = PacerWidget(*self.model.pacer.update(self.pacer_rate), self.GOLD)
 
@@ -241,45 +248,24 @@ class View(QChartView):
         hrv_spectrum_widget.setRenderHint(QPainter.Antialiasing)
 
         # Create QChartView widgets for both charts
-        hlayout0_slider = QVBoxLayout()
-        hlayout0_slider.addWidget(self.pacer_slider)
-        hlayout0_slider.addWidget(self.pacer_label)
-
-        hlayout0 = QHBoxLayout()
-        hlayout0.addWidget(acc_widget, stretch=2)
-        hlayout0.addWidget(hrv_spectrum_widget, stretch=1)
-
-        # Create the left and right labels
-        self.left_label = QLabel()
-        self.left_label.setAlignment(Qt.AlignCenter)
-        self.left_label.setText("<html><font size='10'>Variability</font><br><br><font size='6'>Line 1<br><br>Line 2</font></html>")
-        self.left_label.setStyleSheet("color: black;")
-
-        self.right_label = QLabel()
-        self.right_label.setAlignment(Qt.AlignCenter)
-        self.right_label.setText("<html><font size='10'>Coherence</font><br><br><font size='6'>Line 1<br><br>Line 2</font></html>")
-        self.right_label.setStyleSheet("color: black;")
-        left_spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-        right_spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-
+        sliderLayout = QHBoxLayout()
+        sliderLayout.addWidget(self.pacer_slider)
+        sliderLayout.addWidget(self.pacer_label)
+    
         # Create the horizontal layout and add the widgets
-        hlayout1 = QHBoxLayout()
-        hlayout1.addItem(left_spacer)
-        hlayout1.addWidget(self.left_label)
-        hlayout1.addItem(right_spacer)
-        hlayout1.addLayout(hlayout0_slider)
-        hlayout1.addWidget(self.pacer_widget)
-        hlayout1.addItem(left_spacer)
-        hlayout1.addWidget(self.right_label)
-        hlayout1.addItem(right_spacer)
-        
-        hlayout2 = QHBoxLayout()
-        hlayout2.addWidget(poincare_widget, stretch=1)
-        hlayout2.addWidget(hrv_widget, stretch=2)
+        pacerLayout = QVBoxLayout()
+        pacerLayout.addWidget(self.pacer_widget, alignment=Qt.AlignHCenter | Qt.AlignVCenter)
+        pacerLayout.addLayout(sliderLayout)
 
-        layout.addLayout(hlayout0, stretch=1)
-        layout.addLayout(hlayout1, stretch=1)
-        layout.addLayout(hlayout2, stretch=1)
+        hlayout1 = QHBoxLayout()
+        hlayout1.addWidget(poincare_widget, stretch=4)
+        hlayout1.addLayout(pacerLayout, stretch=3)
+        hlayout1.addWidget(hrv_spectrum_widget, stretch=4)
+    
+        layout.addWidget(acc_widget, stretch=4)
+        layout.addLayout(hlayout1, stretch=5)
+        layout.addWidget(hrv_widget, stretch=4)
+        layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
 
         # Kick off the timer
@@ -309,6 +295,7 @@ class View(QChartView):
         chart.setTitle(title)
         if margins:
             chart.setMargins(margins)
+            chart.layout().setContentsMargins(margins)
         return chart
     
     def create_scatter_series(self, color=None, size=5):
@@ -316,8 +303,9 @@ class View(QChartView):
             color = self.GRAY
         series = QScatterSeries()
         series.setMarkerSize(size)
-        series.setBorderColor(Qt.transparent)
-        series.setColor(color)
+        series.setMarkerShape(QScatterSeries.MarkerShapeCircle)
+        series.setColor(Qt.transparent)
+        series.setBorderColor(color)
         return series
 
     def create_line_series(self, color=None, width=2, style=None):
@@ -340,19 +328,24 @@ class View(QChartView):
         series.setPen(pen)
         return series
 
-    def create_axis(self, title=None, color=None, tickCount=None, rangeMin=None, rangeMax=None):
+    def create_axis(self, title=None, color=None, tickCount=None, rangeMin=None, rangeMax=None, labelSize=None):
         if color is None:
             color = self.GRAY
         axis = QValueAxis()
         axis.setTitleText(title)
         axis.setLabelsColor(color)
         axis.setTitleBrush(color)
+        axis.setGridLineVisible(False)
         if tickCount:
             axis.setTickCount(tickCount)
         if rangeMin:
             axis.setMin(rangeMin)
         if rangeMax:
             axis.setMax(rangeMax)
+        if labelSize:
+            font = QFont()
+            font.setPointSize(labelSize)
+            axis.setLabelsFont(font)
         return axis        
 
     def update_pacer_rate(self):
@@ -443,13 +436,6 @@ class View(QChartView):
         if np.any(~np.isnan(self.model.br_values_hist)):
             max_val = np.ceil(np.nanmax(self.model.br_values_hist[self.br_times_hist_rel_s > -self.HRV_SERIES_TIME_RANGE])/5)*5
             self.axis_br_y.setRange(0, max_val)
-        
-        # HRV plot (local max-min)
-        # series_hrv_new = []
-        # for i, value in enumerate(self.model.hrv_values_hist):
-        #     if not np.isnan(value):
-        #         series_hrv_new.append(QPointF(self.model.hrv_times_hist[i], value))
-        # self.series_hrv.replace(series_hrv_new)   
 
         if np.any(~np.isnan(self.model.hrv_values_hist)):
             max_val = np.ceil(np.nanmax(self.model.hrv_values_hist[self.model.hrv_times_hist > -self.HRV_SERIES_TIME_RANGE])/10)*10
@@ -490,16 +476,16 @@ class View(QChartView):
                 self.axis_poincare_x.setRange(min_val, self.axis_poincare_x.max())
                 self.axis_poincare_y.setRange(min_val, self.axis_poincare_y.max())
 
-        title_str = "<font size='10'>Variability</font><br><br>"
+        title_str = "Variability<br>"
         maxmin_last = self.model.maxmin_values_hist[-1]
         rmssd_last = self.model.rmssd_values_hist[-1]
         if not np.isnan(maxmin_last):
             color = self.RED.name() if maxmin_last < 50 else self.ORANGE.name() if maxmin_last < 150 else self.GREEN.name()
-            title_str = "<font color='{}'>Depth: {:.0f} ms</font>".format(color, maxmin_last)
+            title_str += "<font color='{}'>Depth: {:.0f} ms</font>".format(color, maxmin_last)
         if not np.isnan(rmssd_last):
             color = self.RED.name() if rmssd_last < 10 else self.ORANGE.name() if rmssd_last < 40 else self.GREEN.name()
             title_str += "<br><font color='{}'>Width: {:.0f} ms</font>".format(color, rmssd_last)
-        self.left_label.setText(title_str)
+        self.chart_poincare.setTitle(title_str)
 
         # HRV Spectrum plot
         series_hrv_spectrum_new = []
@@ -508,14 +494,14 @@ class View(QChartView):
                 series_hrv_spectrum_new.append(QPointF(self.model.hrv_psd_freqs_hist[i], value))
         self.series_hrv_spectrum.replace(series_hrv_spectrum_new)
 
-        title_str = "<font size='10'>Coherence</font><br><br>"
+        title_str = "Coherence<br>"
         if not np.isnan(self.model.br_coherence):
             color = self.RED.name() if self.model.br_coherence < 0.15 else self.ORANGE.name() if self.model.br_coherence < 0.4 else self.GREEN.name()
-            title_str = "<font color='{}'>Breathing: {:4.2f}</font>".format(color, self.model.br_coherence)
+            title_str += "<font color='{}'>Breathing: {:4.2f}</font>".format(color, self.model.br_coherence)
         if not np.isnan(self.model.hr_coherence):
             color = self.RED.name() if self.model.hr_coherence < 0.15 else self.ORANGE.name() if self.model.hr_coherence < 0.4 else self.GREEN.name()
             title_str += "<br><font color='{}'>Heart rate: {:4.2f}</font>".format(color, self.model.hr_coherence)
-        self.right_label.setText(title_str)
+        self.chart_hrv_spectrum.setTitle(title_str)
 
         series_breath_spectrum_new = []
         for i, value in enumerate(self.model.br_psd_values_hist):
