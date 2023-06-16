@@ -110,7 +110,7 @@ class View(QChartView):
         self.series_breath_cycle_marker = self.create_scatter_series(self.GRAY, self.DOTSIZE_SMALL)
         self.axis_acc_x = self.create_axis(title=None, tickCount=10, rangeMin=-self.BREATH_ACC_TIME_RANGE, rangeMax=0, labelSize=10)
         # self.axis_y_pacer = self.create_axis(title="Pacer", color=self.GOLD, rangeMin=-1, rangeMax=1)
-        self.axis_y_breath_acc = self.create_axis("Breath (m/s2)", self.BLUE, rangeMin=-1, rangeMax=1, labelSize=10)
+        self.axis_y_breath_acc = self.create_axis("Breath (m/s2)", self.BLUE, rangeMin=-0.1, rangeMax=0.1, labelSize=10)
 
         # Heart rate chart
         self.chart_hr = self.create_chart(title='Heart rate', showTitle=False, showLegend=False)

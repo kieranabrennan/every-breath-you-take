@@ -27,8 +27,8 @@ class Model:
         # History sizes
         self.BR_ACC_HIST_SIZE = 1200 # 
         self.IBI_HIST_SIZE = 400 # roughly number of seconds (assuming 60 bpm avg)
-        self.HRV_HIST_SIZE = 250 
-        self.BR_HIST_SIZE = 250 # Fast breathing 20 breaths per minute, sampled once every breathing cycle, over 10 minutes this is 200 values
+        self.HRV_HIST_SIZE = 500 
+        self.BR_HIST_SIZE = 500 # Fast breathing 20 breaths per minute, sampled once every breathing cycle, over 10 minutes this is 200 values
 
         # Accelerometer signal parameters
         self.GRAVITY_ALPHA = 0.999 # Exponential mean filter for gravity
@@ -51,6 +51,7 @@ class Model:
         self.ibi_last_phase = 0
         self.ibi_last_extreme = 0
         self.br_last_phase = 0
+        self.current_br = 0
 
         # History array initialisation
         self.breath_acc_hist = np.full(self.BR_ACC_HIST_SIZE, np.nan)
@@ -88,7 +89,6 @@ class Model:
         self.hr_extrema_ids = np.full(self.HRV_HIST_SIZE, -1, dtype=int)
         self.breath_cycle_ids = np.full(self.BR_HIST_SIZE, -1, dtype=int)
         
-
     def set_polar_sensor(self, device):
         self.polar_sensor = PolarH10(device)
 
@@ -198,21 +198,10 @@ class Model:
 
     def update_breathing_rate(self):
 
-        current_br_phase = np.sign(self.breath_acc_hist[-1])
-
-        # Exit if the phase hasn't changed or is non-negative
-        if current_br_phase == self.br_last_phase or current_br_phase >= 0:
-            self.br_last_phase = current_br_phase
-            return
-
-        # Save the index of the end of the cycle, the point of descending zero-crossing
-        self.breath_cycle_ids = np.roll(self.breath_cycle_ids, -1)
-        self.breath_cycle_ids[-1] = self.BR_ACC_HIST_SIZE - 1
-
         # Update the breathing rate and pacer history
         if np.isnan(self.br_times_hist[-1]):
             self.br_values_hist = np.roll(self.br_values_hist, -1)
-            self.br_values_hist[-1] = 0
+            self.br_values_hist[-1] = self.current_br
 
             self.br_pace_values_hist = np.roll(self.br_pace_values_hist, -1)
             self.br_pace_values_hist[-1] = 0
@@ -226,17 +215,10 @@ class Model:
             self.maxmin_values_hist = np.roll(self.maxmin_values_hist, -1)
             self.maxmin_values_hist[-1] = 0
         else:
-            # Calculate the breathing rate
-            seconds_current_phase = self.breath_acc_times[-1] - self.br_times_hist[-1]
-            current_breathing_rate = 60.0 / (seconds_current_phase)
-            
-            # Filter out high breathing rates
-            if current_breathing_rate > self.BR_MAX_FILTER:
-                return
 
             # Update the breathing rate history
             self.br_values_hist = np.roll(self.br_values_hist, -1)
-            self.br_values_hist[-1] = current_breathing_rate
+            self.br_values_hist[-1] = self.current_br
 
             self.br_pace_values_hist = np.roll(self.br_pace_values_hist, -1)
             self.br_pace_values_hist[-1] = self.pacer.last_breathing_rate  
@@ -256,9 +238,6 @@ class Model:
             maxmin = np.max(self.ibi_values_hist[ibi_indices_in_cycle]) - np.min(self.ibi_values_hist[ibi_indices_in_cycle])
             self.maxmin_values_hist = np.roll(self.maxmin_values_hist, -1)
             self.maxmin_values_hist[-1] = maxmin
-
-
-        self.br_last_phase = current_br_phase
 
     def update_breathing_spectrum(self):
         if np.sum(~np.isnan(self.breath_acc_times)) < 3:
@@ -285,7 +264,61 @@ class Model:
 
         self.br_coherence = peak_power/total_power
 
+    def update_acc_vectors(self, acc):
+        # Update the gravity acc estimate (intialised to the first value)
+        if np.isnan(self.acc_gravity).any():
+            self.acc_gravity = acc
+        else:
+            self.acc_gravity = self.GRAVITY_ALPHA*self.acc_gravity + (1-self.GRAVITY_ALPHA)*acc
 
+        # Unbias and denoise the acceleration
+        acc_zero_centred = acc - self.acc_gravity
+        self.acc_zero_centred_exp_mean = self.ACC_MEAN_ALPHA*self.acc_zero_centred_exp_mean + (1-self.ACC_MEAN_ALPHA)*acc_zero_centred
+
+    def update_breathing_cycle(self):
+        # Returns new_breathing_cycle
+
+        self.breath_cycle_ids = self.breath_cycle_ids - 1
+        self.breath_cycle_ids[self.breath_cycle_ids < -1] = -1
+
+        current_br_phase = np.sign(self.breath_acc_hist[-1])
+
+        # Exit if the phase hasn't changed or is non-negative
+        if current_br_phase == self.br_last_phase or current_br_phase >= 0:
+            self.br_last_phase = current_br_phase
+            return 0
+
+        # Calculate the breathing rate
+        self.current_br = 60.0 / (self.breath_acc_times[-1] - self.br_times_hist[-1])
+        
+        # Filter out high breathing rates
+        if self.current_br > self.BR_MAX_FILTER:
+            return 0 
+
+        # Save the index of the end of the cycle, the point of descending zero-crossing
+        self.breath_cycle_ids = np.roll(self.breath_cycle_ids, -1)
+        self.breath_cycle_ids[-1] = self.BR_ACC_HIST_SIZE - 1
+
+        self.br_last_phase = current_br_phase
+
+        if self.breath_cycle_ids[-2] < 0:
+            return 0
+        else: 
+            return 1
+
+    def update_breathing_acc(self, t):
+        # Returns new_breathing_acc
+
+        if t - self.t_last_breath_acc_update > 1/self.BR_ACC_SAMPLE_RATE:
+            self.breath_acc_hist = np.roll(self.breath_acc_hist, -1)
+            self.breath_acc_hist[-1] = np.dot(self.acc_zero_centred_exp_mean, self.acc_principle_axis)
+            self.breath_acc_times = np.roll(self.breath_acc_times, -1)
+            self.breath_acc_times[-1] = t
+            self.t_last_breath_acc_update = t
+            return 1
+        else:  
+            return 0
+                
     async def update_acc(self): # pmd: polar measurement data
         
         await self.polar_sensor.start_acc_stream()
@@ -298,30 +331,19 @@ class Model:
                 # Get the latest sensor data
                 t, acc = self.polar_sensor.dequeue_acc()
 
-                # Update the gravity acc estimate (intialised to the first value)
-                if np.isnan(self.acc_gravity).any():
-                    self.acc_gravity = acc
-                else:
-                    self.acc_gravity = self.GRAVITY_ALPHA*self.acc_gravity + (1-self.GRAVITY_ALPHA)*acc
-                
-                # Unbias and denoise the acceleration
-                acc_zero_centred = acc - self.acc_gravity
-                self.acc_zero_centred_exp_mean = self.ACC_MEAN_ALPHA*self.acc_zero_centred_exp_mean + (1-self.ACC_MEAN_ALPHA)*acc_zero_centred
+                # Update the acceleration vectors
+                self.update_acc_vectors(acc)
 
-                # Subsampled update of the breathing acceleration history as the z-amplitude
-                if (t - self.t_last_breath_acc_update) > (1/self.BR_ACC_SAMPLE_RATE):
-        
-                    self.breath_acc_hist = np.roll(self.breath_acc_hist, -1)
-                    self.breath_acc_hist[-1] = np.dot(self.acc_zero_centred_exp_mean, self.acc_principle_axis)
-                    self.breath_acc_times = np.roll(self.breath_acc_times, -1)
-                    self.breath_acc_times[-1] = t
+                # Update breathing acceleration history
+                new_breathing_acc = self.update_breathing_acc(t)
 
-                    self.breath_cycle_ids = self.breath_cycle_ids - 1
-                    self.breath_cycle_ids[self.breath_cycle_ids < -1] = -1
+                # Update the breathing acceleration history
+                if new_breathing_acc:
+                    self.update_breathing_spectrum()
+                    new_breathing_cycle = self.update_breathing_cycle()
+                    
+                    if new_breathing_cycle:
+                        self.update_breathing_rate()
 
-                    self.t_last_breath_acc_update = t
-                
-                self.update_breathing_rate()
-                self.update_breathing_spectrum()
 
     
