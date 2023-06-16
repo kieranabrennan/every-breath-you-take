@@ -125,7 +125,6 @@ class View(QChartView):
         # Heart rate variability chart
         self.chart_hrv = self.create_chart(title='Heart rate variability', showTitle=False, showLegend=False)
         # self.series_hrv = self.create_spline_series(self.RED, self.LINEWIDTH)
-        self.series_rmssd = self.create_spline_series(self.YELLOW, self.LINEWIDTH)
         self.series_maxmin = self.create_spline_series(self.RED, self.LINEWIDTH)
         self.axis_hrv_x = self.create_axis(title=None, tickCount=10, rangeMin=-self.HRV_SERIES_TIME_RANGE, rangeMax=0, labelSize=10)
         self.axis_hrv_y = self.create_axis(title="HRV (ms)", color=self.RED, rangeMin=0, rangeMax=250, labelSize=10)
@@ -181,14 +180,11 @@ class View(QChartView):
 
         # Heart rate variability chart
         # self.chart_hrv.addSeries(self.series_hrv)
-        self.chart_hrv.addSeries(self.series_rmssd)
         self.chart_hrv.addSeries(self.series_maxmin)
         self.chart_hrv.addAxis(self.axis_hrv_x, Qt.AlignBottom)
         self.chart_hrv.addAxis(self.axis_hrv_y, Qt.AlignLeft)
         # self.series_hrv.attachAxis(self.axis_hrv_x)
         # self.series_hrv.attachAxis(self.axis_hrv_y)
-        self.series_rmssd.attachAxis(self.axis_hrv_x)
-        self.series_rmssd.attachAxis(self.axis_hrv_y)
         self.series_maxmin.attachAxis(self.axis_hrv_x)
         self.series_maxmin.attachAxis(self.axis_hrv_y)
 
@@ -442,13 +438,10 @@ class View(QChartView):
             self.axis_hrv_y.setRange(0, max_val)
 
         # RMSSD Series
-        series_rmssd_new = []
         series_maxmin_new = []
-        for i, value in enumerate(self.model.rmssd_values_hist):
+        for i, value in enumerate(self.model.maxmin_values_hist):
             if not np.isnan(value):
-                series_rmssd_new.append(QPointF(self.br_times_hist_rel_s[i], value))
-                series_maxmin_new.append(QPointF(self.br_times_hist_rel_s[i], self.model.maxmin_values_hist[i]))
-        self.series_rmssd.replace(series_rmssd_new)
+                series_maxmin_new.append(QPointF(self.br_times_hist_rel_s[i], value))
         self.series_maxmin.replace(series_maxmin_new)
     
         # Poincare plot
