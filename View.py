@@ -1,6 +1,6 @@
 
 import asyncio
-from PySide6.QtCore import QTimer, Qt, QPointF, QMargins, QSize
+from PySide6.QtCore import QTimer, Qt, QPointF, QMargins, QSize, QFile
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QSizePolicy, QSlider, QLabel, QWidget, QGridLayout
 from PySide6.QtCharts import QChart, QChartView, QLineSeries, QValueAxis, QScatterSeries, QSplineSeries, QAreaSeries
 from PySide6.QtGui import QPen, QColor, QPainter, QFont
@@ -115,6 +115,15 @@ class View(QChartView):
 
         self.model = Model()
 
+        # Load the stylesheet from the file
+        style_file = QFile("style.qss")
+        style_file.open(QFile.ReadOnly | QFile.Text)
+        stylesheet = style_file.readAll()
+        stylesheet = str(stylesheet, encoding="utf-8")
+
+        # Set the stylesheet
+        self.setStyleSheet(stylesheet)
+
         # Plot parameters
         self.RED = QColor(200, 30, 45)
         self.YELLOW = QColor(254, 191, 0)
@@ -132,9 +141,9 @@ class View(QChartView):
         self.UPDATE_BREATHING_SERIES_PERIOD = 50 # ms
         self.UPDATE_PACER_PERIOD = 20 # ms
         self.PACER_HIST_SIZE = 6000
-        self.BREATH_ACC_TIME_RANGE = 120 # s
+        self.BREATH_ACC_TIME_RANGE = 30 # s
         self.HR_SERIES_TIME_RANGE = 300 # s
-        self.HRV_SERIES_TIME_RANGE = 600 # s
+        self.HRV_SERIES_TIME_RANGE = 300 # s
 
         # Initialisation
         self.pacer_rate = 6
@@ -144,7 +153,7 @@ class View(QChartView):
         self.series_pacer = self.create_line_series(self.GOLD, self.LINEWIDTH)
         self.series_breath_acc = self.create_line_series(self.BLUE, self.LINEWIDTH)
         self.series_breath_cycle_marker = self.create_scatter_series(self.GRAY, self.DOTSIZE_SMALL)
-        self.axis_acc_x = self.create_axis(title=None, tickCount=10, rangeMin=-self.BREATH_ACC_TIME_RANGE, rangeMax=0, labelSize=10, flip=True)
+        self.axis_acc_x = self.create_axis(title=None, tickCount=10, rangeMin=-self.BREATH_ACC_TIME_RANGE, rangeMax=0, labelSize=10, flip=False)
         # self.axis_y_pacer = self.create_axis(title="Pacer", color=self.GOLD, rangeMin=-1, rangeMax=1)
         self.axis_y_breath_acc = self.create_axis("Breath (m/s2)", self.BLUE, rangeMin=-1, rangeMax=1, labelSize=10)
 
@@ -183,15 +192,11 @@ class View(QChartView):
         self.series_pacer_line = self.create_line_series(self.GOLD, self.LINEWIDTH, Qt.DotLine)
         
         self.pacer_slider = QSlider(Qt.Horizontal)
-        self.pacer_slider.setStyleSheet("""QSlider {
-            border: 1px solid #aaa;
-        }
-        """)
-        self.pacer_slider.setTickPosition(QSlider.TicksBelow)
-        self.pacer_slider.setTracking(False)
-        self.pacer_slider.setRange(1,10)
+        self.pacer_slider.setRange(3,10)
+        self.pacer_slider.setSingleStep(0.5)
         self.pacer_slider.setValue(self.pacer_rate)
         self.pacer_slider.valueChanged.connect(self.update_pacer_rate)
+        
         self.pacer_label = QLabel()
         self.pacer_label.setStyleSheet("QLabel {color: black}")
         self.pacer_label.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
@@ -272,7 +277,7 @@ class View(QChartView):
         hrv_spectrum_widget.setStyleSheet("background-color: transparent;")
 
         self.pacer_widget = PacerWidget(*self.model.pacer.update(self.pacer_rate), self.GOLD)
-
+        
         acc_widget.setRenderHint(QPainter.Antialiasing)
         hrv_widget.setRenderHint(QPainter.Antialiasing)
         poincare_widget.setRenderHint(QPainter.Antialiasing)
@@ -283,7 +288,7 @@ class View(QChartView):
         sliderLayout = QHBoxLayout()
         sliderLayout.addWidget(self.pacer_slider)
         sliderLayout.addWidget(self.pacer_label)
-    
+        
         # Create the horizontal layout and add the widgets
         pacerLayout = QVBoxLayout()
         pacerLayout.addWidget(self.pacer_widget, alignment=Qt.AlignHCenter | Qt.AlignVCenter)
