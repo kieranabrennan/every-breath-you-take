@@ -192,15 +192,15 @@ class View(QChartView):
         self.series_pacer_line = self.create_line_series(self.GOLD, self.LINEWIDTH, Qt.DotLine)
         
         self.pacer_slider = QSlider(Qt.Horizontal)
-        self.pacer_slider.setRange(3,10)
-        self.pacer_slider.setSingleStep(0.5)
-        self.pacer_slider.setValue(self.pacer_rate)
+        self.pacer_slider.setRange(3*2,10*2)
+        self.pacer_slider.setValue(self.pacer_rate*2)
         self.pacer_slider.valueChanged.connect(self.update_pacer_rate)
         
         self.pacer_label = QLabel()
         self.pacer_label.setStyleSheet("QLabel {color: black}")
         self.pacer_label.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
         self.pacer_label.setText(f"{self.pacer_rate}")
+        self.pacer_label.setFixedWidth(40)
         
         # Configure
         self.chart_acc.addSeries(self.series_pacer)
@@ -286,8 +286,8 @@ class View(QChartView):
 
         # Create QChartView widgets for both charts
         sliderLayout = QHBoxLayout()
-        sliderLayout.addWidget(self.pacer_slider)
         sliderLayout.addWidget(self.pacer_label)
+        sliderLayout.addWidget(self.pacer_slider)
         
         # Create the horizontal layout and add the widgets
         pacerLayout = QVBoxLayout()
@@ -296,8 +296,8 @@ class View(QChartView):
 
         hlayout0 = QHBoxLayout()
         self.coherenceInfo = InfoBox(title="Coherence", valueTitle1="Breath", value1=0.0, valueTitle2="Heart", value2=0.0)
-        hlayout0.addWidget(acc_widget, stretch=3)
-        hlayout0.addWidget(self.coherenceInfo, stretch=1)
+        hlayout0.addWidget(acc_widget, stretch=7)
+        hlayout0.addWidget(self.coherenceInfo, stretch=4)
 
         hlayout1 = QHBoxLayout()
         hlayout1.addWidget(poincare_widget, stretch=4)
@@ -306,8 +306,8 @@ class View(QChartView):
 
         hlayout2 = QHBoxLayout()
         self.variabilityInfo = InfoBox(title="Variability", valueTitle1="Width", value1=0.0, valueTitle2="Height", value2=0.0, titlePosition="bottom")
-        hlayout2.addWidget(self.variabilityInfo, stretch=1)
-        hlayout2.addWidget(hrv_widget, stretch=4)
+        hlayout2.addWidget(self.variabilityInfo, stretch=4)
+        hlayout2.addWidget(hrv_widget, stretch=7)
 
         layout.addLayout(hlayout0, stretch=4)
         layout.addLayout(hlayout1, stretch=5)
@@ -398,8 +398,8 @@ class View(QChartView):
         return axis        
 
     def update_pacer_rate(self):
-        self.pacer_rate = self.pacer_slider.value()
-        self.pacer_label.setText(f"{self.pacer_slider.value()}")
+        self.pacer_rate = self.pacer_slider.value()/2
+        self.pacer_label.setText(f"{self.pacer_slider.value()/2}")
 
     def plot_pacer_disk(self):
         coordinates = self.model.pacer.update(self.pacer_rate)
