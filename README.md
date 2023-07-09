@@ -1,0 +1,11 @@
+With every breath you take, your heart beat rises and falls. This is a result of the tension between the two forces acting to keep your autonomic nervous system in equilibrium: the fight-or-flight response (also called the sympathetic nervous response) and the rest-and-digest response (also called the parasympathetic nervous response).
+
+Your heart rate elevates slightly during inhalation, then falls again during exhalation. This cycle repeats, forming a complex wave. The characteristics of this  wave change when a person gets sick – abnormal heart rate variability is highly correlated with cardiovascular disease and mental health disorders.
+
+This sickness is linked to an imbalance between the fight-or-flight and rest-and-digest responses. The interaction between the two systems is complex, but a overemphasis or underemphasis of either is unhealthy. Such an imbalance becomes reflected in the heart rate wave, specifcally in the coherence, i.e. the consistency of the wave, and the variability, i.e. the distance between peaks and troughs.
+
+A drop in heart rate coherence or variability will reliably predict the onset of sickness or a drop in mood, commonly tracked by popular consumer health trackers. The cause of these long term trends can be related to a range of lifestyle factors including diet, exercise and social engagement. Interventions on this time scale are the goal of devices including the Apple Watch, Fitbit, and Whoop, coupled with coaching techniques, and habit building practises.
+
+However, in any given moment it is possible to return your coherence and variability heart rate to healthy levels through controlled breathing, regardless of your baseline physiological or psychological state. By setting a breathing pacer, and measuring breathing rate and heart rate with a Polar H10 chest strap, this tool helps you do this. 
+
+For every breath you take, the tool shows your breathing coherence is relative to the pace you set, how coherent your heart rate is, and how much variability there is in your heart rate. Adjusting the pacer helps you find your resonant breathing rate, i.e. the pace where variability is maximum, shows you how your nervous system responses to this breathing, and makes it possible return to a balanced state quickly through breathing.
