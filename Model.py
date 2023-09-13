@@ -194,7 +194,7 @@ class Model:
                 self.hr_extrema_ids[self.hr_extrema_ids < -1] = -1
                 
                 self.update_hrv()
-                self.update_hrv_spectrum()
+                # self.update_hrv_spectrum()
 
     def update_breathing_rate(self):
 
