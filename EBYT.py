@@ -17,7 +17,7 @@ if __name__ == "__main__":
     
     plot = View()
     plot.setWindowTitle("Rolling Plot")
-    plot.resize(1200, 800)
+    plot.resize(1200, 600)
     plot.show()
 
     loop.run_until_complete(plot.main())

@@ -11,7 +11,7 @@ from Model import Model
 
 '''
 TODO: 
-- Remove the Coherence and Variability plots
+- 
 - Overlap a breathing circle, overlay a heart rate variability circle
 - Abstract the historic series type
 - Exit the program nicely
@@ -73,6 +73,23 @@ class PacerWidget(QChartView):
         if self.size().width() != self.size().height():
             self.updateGeometry()  # adjusts geometry based on sizeHint
         return super().resizeEvent(event)
+
+class SquareWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        
+    def sizeHint(self):
+        return QSize(100, 100)
+
+    def resizeEvent(self, event):
+        side = min(self.width(), self.height())
+        if self.width() > self.height():
+            self.setMaximumHeight(side)
+            self.setMaximumWidth(side)
+        else:
+            self.setMaximumWidth(side)
+            self.setMaximumHeight(side)
 
 class InfoBox(QWidget):
     def __init__(self, title, valueTitle1=None, value1=None, valueTitle2=None, value2=None, titlePosition="top"):
@@ -237,19 +254,26 @@ class View(QChartView):
         hrv_widget.setRenderHint(QPainter.Antialiasing)
         self.pacer_widget.setRenderHint(QPainter.Antialiasing)
 
-        # Create QChartView widgets for both charts
         sliderLayout = QHBoxLayout()
         sliderLayout.addWidget(self.pacer_label)
         sliderLayout.addWidget(self.pacer_slider)
+        sliderLayout.addSpacing(60)
         
-        # Create the horizontal layout and add the widgets
         pacerLayout = QVBoxLayout()
         pacerLayout.addWidget(self.pacer_widget, alignment=Qt.AlignHCenter | Qt.AlignVCenter)
+        # pacerLayout.addWidget(self.pacer_widget)
         pacerLayout.addLayout(sliderLayout)
 
-        layout.addWidget(acc_widget, stretch=5)
-        layout.addLayout(pacerLayout, stretch=4)
-        layout.addWidget(hrv_widget, stretch=5)
+        squareContainer = SquareWidget()
+        squareContainer.setLayout(pacerLayout)
+
+        topRowLayout = QHBoxLayout()
+        topRowLayout.addWidget(acc_widget, stretch=3)
+        topRowLayout.addWidget(squareContainer, stretch=1)
+
+        # layout.addWidget(acc_widget, stretch=5)
+        layout.addLayout(topRowLayout, stretch=1)
+        layout.addWidget(hrv_widget, stretch=1)
         layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
 
