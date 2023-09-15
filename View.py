@@ -17,8 +17,8 @@ TODO:
 - Exit the program nicely
 '''
 
-class PacerWidget(QChartView):
-    def __init__(self, x_values=None, y_values=None, color=None):
+class CirclesWidget(QChartView):
+    def __init__(self, x_values=None, y_values=None, pacer_color=None, breathing_color=None):
         super().__init__()
 
         self.setSizePolicy(
@@ -36,34 +36,51 @@ class PacerWidget(QChartView):
         self.plot.setBackgroundRoundness(0)
         self.plot.setMargins(QMargins(0, 0, 0, 0))
 
-        self.disc_circumference_coord = QSplineSeries()
-        if x_values is not None and y_values is not None:
-            self._instantiate_series(x_values, y_values)
-        self.disk = QAreaSeries(self.disc_circumference_coord)
-        self.disk.setColor(color)
+        # Pacer disc
+        self.pacer_circumference_coord = QSplineSeries()
+        self.disk = QAreaSeries(self.pacer_circumference_coord)
+        self.disk.setColor(pacer_color)
         self.plot.addSeries(self.disk)
 
+        # Breathing disc
+        self.breath_circumference_coord = QSplineSeries()
+        pen = QPen(breathing_color)
+        pen.setWidth(3)
+        self.breath_circumference_coord.setPen(pen)
+        self.plot.addSeries(self.breath_circumference_coord)   
+
+        if x_values is not None and y_values is not None:
+            self._instantiate_series(x_values, y_values)
+
+        # Axes
         self.x_axis = QValueAxis()
         self.x_axis.setRange(-1, 1)
         self.x_axis.setVisible(False)
         self.plot.addAxis(self.x_axis, Qt.AlignBottom)
         self.disk.attachAxis(self.x_axis)
+        self.breath_circumference_coord.attachAxis(self.x_axis)
 
         self.y_axis = QValueAxis()
         self.y_axis.setRange(-1, 1)
         self.y_axis.setVisible(False)
         self.plot.addAxis(self.y_axis, Qt.AlignLeft)
         self.disk.attachAxis(self.y_axis)
+        self.breath_circumference_coord.attachAxis(self.y_axis)
 
         self.setChart(self.plot)
 
     def _instantiate_series(self, x_values, y_values):
         for x, y in zip(x_values, y_values):
-            self.disc_circumference_coord.append(x, y)
+            self.pacer_circumference_coord.append(x, y)
+            self.breath_circumference_coord.append(x, y)
 
-    def update_series(self, x_values, y_values):
+    def update_pacer_series(self, x_values, y_values):
         for i, (x, y) in enumerate(zip(x_values, y_values)):
-            self.disc_circumference_coord.replace(i, x, y)
+            self.pacer_circumference_coord.replace(i, x, y)
+
+    def update_breath_series(self, x_values, y_values):
+        for i, (x, y) in enumerate(zip(x_values, y_values)):
+            self.breath_circumference_coord.replace(i, x, y)
 
     def sizeHint(self):
         height = self.size().height()
@@ -158,7 +175,7 @@ class View(QChartView):
         # Series parameters
         self.UPDATE_SERIES_PERIOD = 100 # ms
         self.UPDATE_BREATHING_SERIES_PERIOD = 50 # ms
-        self.UPDATE_PACER_PERIOD = 20 # ms
+        self.UPDATE_PACER_PERIOD = 10 # 20 # ms
         self.PACER_HIST_SIZE = 6000
         self.BREATH_ACC_TIME_RANGE = 30 # s
         self.HR_SERIES_TIME_RANGE = 300 # s
@@ -248,11 +265,11 @@ class View(QChartView):
         hrv_widget = QChartView(self.chart_hrv)
         hrv_widget.setStyleSheet("background-color: transparent;")
     
-        self.pacer_widget = PacerWidget(*self.model.pacer.update(self.pacer_rate), self.GOLD)
+        self.circles_widget = CirclesWidget(*self.model.pacer.update(self.pacer_rate), self.GOLD, self.BLUE)
         
         acc_widget.setRenderHint(QPainter.Antialiasing)
         hrv_widget.setRenderHint(QPainter.Antialiasing)
-        self.pacer_widget.setRenderHint(QPainter.Antialiasing)
+        self.circles_widget.setRenderHint(QPainter.Antialiasing)
 
         sliderLayout = QHBoxLayout()
         sliderLayout.addWidget(self.pacer_label)
@@ -260,8 +277,8 @@ class View(QChartView):
         sliderLayout.addSpacing(60)
         
         pacerLayout = QVBoxLayout()
-        pacerLayout.addWidget(self.pacer_widget, alignment=Qt.AlignHCenter | Qt.AlignVCenter)
-        # pacerLayout.addWidget(self.pacer_widget)
+        pacerLayout.addWidget(self.circles_widget, alignment=Qt.AlignHCenter | Qt.AlignVCenter)
+        # pacerLayout.addWidget(self.circles_widget)
         pacerLayout.addLayout(sliderLayout)
 
         squareContainer = SquareWidget()
@@ -288,7 +305,7 @@ class View(QChartView):
         
         self.pacer_timer = QTimer()
         self.pacer_timer.setInterval(self.UPDATE_PACER_PERIOD)  # ms (20 Hz)
-        self.pacer_timer.timeout.connect(self.plot_pacer_disk)
+        self.pacer_timer.timeout.connect(self.plot_circles)
 
         self.update_acc_series_timer.start()
         self.update_series_timer.start()
@@ -363,14 +380,20 @@ class View(QChartView):
         self.pacer_rate = self.pacer_slider.value()/2
         self.pacer_label.setText(f"{self.pacer_slider.value()/2}")
 
-    def plot_pacer_disk(self):
+    def plot_circles(self):
+        # Pacer
         coordinates = self.model.pacer.update(self.pacer_rate)
-        self.pacer_widget.update_series(*coordinates)
+        self.circles_widget.update_pacer_series(*coordinates)
 
         self.pacer_values_hist = np.roll(self.pacer_values_hist, -1)
         self.pacer_values_hist[-1] = np.linalg.norm([coordinates[0][0],coordinates[1][0]]) - 0.5
         self.pacer_times_hist = np.roll(self.pacer_times_hist, -1)
         self.pacer_times_hist[-1] = time.time_ns()/1.0e9
+
+        # Breathing
+        breath_coordinates = self.model.get_breath_circle_coords()
+        self.circles_widget.update_breath_series(*breath_coordinates)
+
 
     async def connect_polar(self):
 

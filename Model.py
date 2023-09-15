@@ -17,6 +17,7 @@ class Model:
         
         self.polar_sensor = None
         self.pacer = Pacer()
+        self.breathing_circle_radius = -0.5
 
         # Sample rates
         self.ACC_UPDATE_LOOP_PERIOD = 0.01 # s, time to sleep between accelerometer updates
@@ -318,7 +319,17 @@ class Model:
             return 1
         else:  
             return 0
-                
+
+    def get_breath_circle_coords(self):
+        
+        if ~np.isnan(self.breath_acc_hist[-1]):
+            self.breathing_circle_radius = 0.7*self.breath_acc_hist[-1] + (1-0.7)*self.breathing_circle_radius
+        self.breathing_circle_radius = np.min([np.max([self.breathing_circle_radius + 0.5, 0]), 1])
+
+        x = self.breathing_circle_radius * self.pacer.cos_theta
+        y = self.breathing_circle_radius * self.pacer.sin_theta
+        return (x, y)
+
     async def update_acc(self): # pmd: polar measurement data
         
         await self.polar_sensor.start_acc_stream()
