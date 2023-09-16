@@ -5,12 +5,6 @@ import time
 from Pacer import Pacer
 from scipy import signal
 
-'''
-TODO:
-- Figure out if there is a consistent way to update history and times, and if there is make a history buffer class
-- Add functions for returning the history arrays
-'''
-
 class Model:
 
     def __init__(self):
@@ -18,6 +12,7 @@ class Model:
         self.polar_sensor = None
         self.pacer = Pacer()
         self.breathing_circle_radius = -0.5
+        self.hr_circle_radius = -0.5
 
         # Sample rates
         self.ACC_UPDATE_LOOP_PERIOD = 0.01 # s, time to sleep between accelerometer updates
@@ -324,6 +319,8 @@ class Model:
         
         if ~np.isnan(self.breath_acc_hist[-1]):
             self.breathing_circle_radius = 0.7*self.breath_acc_hist[-1] + (1-0.7)*self.breathing_circle_radius
+        else: 
+            self.breathing_circle_radius = -0.5
         self.breathing_circle_radius = np.min([np.max([self.breathing_circle_radius + 0.5, 0]), 1])
 
         x = self.breathing_circle_radius * self.pacer.cos_theta
