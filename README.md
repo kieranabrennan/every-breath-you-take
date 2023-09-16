@@ -1,11 +1,29 @@
-With every breath you take, your heart beat rises and falls. This is a result of the tension between the two forces acting to keep your autonomic nervous system in equilibrium: the fight-or-flight response (also called the sympathetic nervous response) and the rest-and-digest response (also called the parasympathetic nervous response).
+# Every Breath You Take – Heart Rate Variability Training with the Polar H10 Heart Rate Monitor
 
-Your heart rate elevates slightly during inhalation, then falls again during exhalation. This cycle repeats, forming a complex wave. The characteristics of this  wave change when a person gets sick – abnormal heart rate variability is highly correlated with cardiovascular disease and mental health disorders.
+Through controlled breathing it is possible to regulate your body's stress reponse. This program allows you to measure and train this effect with a Polar H10 Heart Rate monitor.
 
-This sickness is linked to an imbalance between the fight-or-flight and rest-and-digest responses. The interaction between the two systems is complex, but a overemphasis or underemphasis of either is unhealthy. Such an imbalance becomes reflected in the heart rate wave, specifcally in the coherence, i.e. the consistency of the wave, and the variability, i.e. the distance between peaks and troughs.
+Heart rate variability – the small changes in heart rate from beat-to-beat – is a reliable measure of stress response. Heart rate variability reflects the balance between the two sides of the autonomic nervous system: the fight-or-flight response (also called the sympathetic nervous response) and the rest-and-digest response (also called the parasympathetic nervous response).
 
-A drop in heart rate coherence or variability will reliably predict the onset of sickness or a drop in mood, commonly tracked by popular consumer health trackers. The cause of these long term trends can be related to a range of lifestyle factors including diet, exercise and social engagement. Interventions on this time scale are the goal of devices including the Apple Watch, Fitbit, and Whoop, coupled with coaching techniques, and habit building practises.
+Heart rate rises slightly during inhalation, and falls again during exhalation. In any given moment it is possible to restore balance to the autonomic nervous system by breathing slower and deeper. The on-screen pacer allows you to set a breathing rate to follow, breathing rate is measured from the chest strap accelerometer, and heart rate variability is calculated from the heart rate monitor.
 
-However, in any given moment it is possible to return your coherence and variability heart rate to healthy levels through controlled breathing, regardless of your baseline physiological or psychological state. By setting a breathing pacer, and measuring breathing rate and heart rate with a Polar H10 chest strap, this tool helps you do this. 
+![Alt Text](img/video_1080.gif)
 
-For every breath you take, the tool shows your breathing coherence is relative to the pace you set, how coherent your heart rate is, and how much variability there is in your heart rate. Adjusting the pacer helps you find your resonant breathing rate, i.e. the pace where variability is maximum, shows you how your nervous system responses to this breathing, and makes it possible return to a balanced state quickly through breathing.
+## Features
+
+- Connect to a Polar H10 heart rate monitor, simultanesouly record accelerometer and heart rate data (interbeat interval)
+- Calculate and breathing rate and heart rate varability
+
+## Installation
+    
+    python -m venv venv
+    source venv/bin/activate  # On Windows, use `my_project_env\Scripts\activate`
+    pip install -r requirements.txt
+    python3 EBYT.py 
+
+
+The program will automatically connect to the first Polar BLE device it is able to find
+For best breathing detection, ensure the Polar H10 is fitted around the widest part of the ribcage
+
+
+## Contributing
+Feedback, bug reports, and pull requests are welcome. Feel free to submit an issue or create a pull request on GitHub.

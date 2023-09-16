@@ -153,7 +153,7 @@ class View(QChartView):
         self.series_breath_cycle_marker = self.create_scatter_series(self.GRAY, self.DOTSIZE_SMALL)
         self.axis_acc_x = self.create_axis(title=None, tickCount=10, rangeMin=-self.BREATH_ACC_TIME_RANGE, rangeMax=0, labelSize=10, flip=False)
         # self.axis_y_pacer = self.create_axis(title="Pacer", color=self.GOLD, rangeMin=-1, rangeMax=1)
-        self.axis_y_breath_acc = self.create_axis("Breath (m/s2)", self.BLUE, rangeMin=-1, rangeMax=1, labelSize=10)
+        self.axis_y_breath_acc = self.create_axis("Chest expansion (m/s2)", self.BLUE, rangeMin=-1, rangeMax=1, labelSize=10)
 
         # Heart rate chart
         self.chart_hr = self.create_chart(title='Heart rate', showTitle=False, showLegend=False)
@@ -188,15 +188,15 @@ class View(QChartView):
         self.hrv_band_line_3.append(0, 2000)
         self.hrv_band_0 = QAreaSeries(self.hrv_band_line_0, self.hrv_band_line_1)
         self.hrv_band_0.setColor(self.RED)
-        self.hrv_band_0.setOpacity(0.3)
+        self.hrv_band_0.setOpacity(0.2)
         self.hrv_band_0.setPen(QPen(Qt.NoPen))
         self.hrv_band_1 = QAreaSeries(self.hrv_band_line_1, self.hrv_band_line_2)
-        self.hrv_band_1.setColor(self.ORANGE)
-        self.hrv_band_1.setOpacity(0.3)
+        self.hrv_band_1.setColor(self.YELLOW)
+        self.hrv_band_1.setOpacity(0.2)
         self.hrv_band_1.setPen(QPen(Qt.NoPen))
         self.hrv_band_2 = QAreaSeries(self.hrv_band_line_2, self.hrv_band_line_3)
         self.hrv_band_2.setColor(self.GREEN)
-        self.hrv_band_2.setOpacity(0.3)
+        self.hrv_band_2.setOpacity(0.2)
         self.hrv_band_2.setPen(QPen(Qt.NoPen))
 
         self.pacer_slider = QSlider(Qt.Horizontal)
