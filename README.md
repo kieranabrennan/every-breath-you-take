@@ -6,7 +6,7 @@ Heart rate variability, the small changes in heart rate from beat-to-beat, is a 
 
 In any moment it is possible to restore balance to the autonomic nervous system by breathing slower and deeper. With every breath you take, you can set the pace of your breathing rate, measure your breathing control with the chest accelerometer, and see how heart rate variability responds.
 
-![](img/video_1080.gif)
+![](img/screen_record.gif)
 
 ## Features
 
