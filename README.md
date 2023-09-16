@@ -22,7 +22,7 @@ In any moment it is possible to restore balance to the autonomic nervous system 
     pip install -r requirements.txt
     python EBYT.py 
 
-The program will automatically connect to your Polar device. For best breathing detection, ensure the Polar H10 is fitted around the widest part of the ribcage.
+The program will automatically connect to your Polar device. For best breathing detection, ensure the Polar H10 is fitted around the widest part of the ribcage, stay seated and still while recording.
 
 Set the breathing pace with the slider (in breaths per minute), and follow the cadence as the gold circle expands and contracts. The blue circle shows your breathing control.
 
