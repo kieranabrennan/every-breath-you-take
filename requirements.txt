@@ -1,10 +1,10 @@
 asyncqt==0.8.0
 bleak==0.21.1
 numpy==1.25.2
-pyobjc-core==9.2
-pyobjc-framework-Cocoa==9.2
-pyobjc-framework-CoreBluetooth==9.2
-pyobjc-framework-libdispatch==9.2
+pyobjc-core==9.2; platform_system == 'Darwin'
+pyobjc-framework-Cocoa==9.2; platform_system == 'Darwin'
+pyobjc-framework-CoreBluetooth==9.2; platform_system == 'Darwin'
+pyobjc-framework-libdispatch==9.2; platform_system == 'Darwin'
 PySide6==6.5.2
 PySide6-Addons==6.5.2
 PySide6-Essentials==6.5.2
