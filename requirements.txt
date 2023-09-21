@@ -11,3 +11,4 @@ qasync==0.24.0
 scipy==1.11.2
 shiboken6==6.5.2
 typing_extensions==4.7.1
+pyinstaller==5.13.2

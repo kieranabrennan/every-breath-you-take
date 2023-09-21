@@ -2,3 +2,5 @@
 /__pycache__
 .DS_Store
 /misc
+/build
+/dist
