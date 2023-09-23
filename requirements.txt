@@ -1,14 +1,14 @@
 bleak~=0.21.0
 numpy~=1.25.0
+pyinstaller~=5.13.0
 pyobjc-core~=9.2; platform_system == 'Darwin'
 pyobjc-framework-Cocoa~=9.2; platform_system == 'Darwin'
 pyobjc-framework-CoreBluetooth~=9.2; platform_system == 'Darwin'
 pyobjc-framework-libdispatch~=9.2; platform_system == 'Darwin'
-PySide6~=6.5.0
 PySide6-Addons~=6.5.0
 PySide6-Essentials~=6.5.0
+PySide6~=6.5.0
 qasync~=0.24.0
 scipy~=1.11.0
 shiboken6~=6.5.0
 typing_extensions~=4.7.0
-pyinstaller~=5.13.0
