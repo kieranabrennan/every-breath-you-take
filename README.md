@@ -19,7 +19,7 @@ In any moment it is possible to restore balance to the autonomic nervous system 
     
     python -m venv venv
     source venv/bin/activate  # On Windows, use `my_project_env\Scripts\activate`
-    pip install -r requirements.txt
+    pip install -r requirements.lock
     python EBYT.py 
 
 Bundle into an application with pyinstaller:
