@@ -1,12 +1,14 @@
 
+import asyncio
 import os
+import sys
+
 os.environ['QT_API'] = 'PySide6' # For qasync to know which binding is being used
 os.environ['QT_LOGGING_RULES'] = 'qt.pointer.dispatch=false' # Disable pointer logging
 
-import sys
-import asyncio
 from PySide6.QtWidgets import QApplication
 from qasync import QEventLoop
+
 from View import View
 
 if __name__ == "__main__":

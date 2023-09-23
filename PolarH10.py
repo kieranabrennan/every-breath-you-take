@@ -1,8 +1,10 @@
-from bleak import BleakClient
 import asyncio
-import time
-import numpy as np
 import math
+import time
+
+import numpy as np
+from bleak import BleakClient
+
 
 class CircularBuffer2D:
     def __init__(self, rows, cols):

@@ -1,9 +1,12 @@
-import numpy as np
 import asyncio
-from PolarH10 import PolarH10
 import time
-from Pacer import Pacer
+
+import numpy as np
 from scipy import signal
+
+from Pacer import Pacer
+from PolarH10 import PolarH10
+
 
 class Model:
 

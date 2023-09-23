@@ -1,12 +1,14 @@
 
 import asyncio
-from PySide6.QtCore import QTimer, Qt, QPointF, QMargins, QSize, QFile
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QSizePolicy, QSlider, QLabel, QWidget, QGridLayout
-from PySide6.QtCharts import QChart, QChartView, QLineSeries, QValueAxis, QScatterSeries, QSplineSeries, QAreaSeries
-from PySide6.QtGui import QPen, QColor, QPainter, QFont
-from bleak import BleakScanner
 import time
+
 import numpy as np
+from bleak import BleakScanner
+from PySide6.QtCharts import QAreaSeries, QChart, QChartView, QLineSeries, QScatterSeries, QSplineSeries, QValueAxis
+from PySide6.QtCore import QFile, QMargins, QPointF, QSize, Qt, QTimer
+from PySide6.QtGui import QColor, QFont, QPainter, QPen
+from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QSizePolicy, QSlider, QVBoxLayout, QWidget
+
 from Model import Model
 
 '''
