@@ -20,8 +20,8 @@ class Pacer(QObject):
         Radius is modulated according to sinusoidal breathing pattern
         and scaled between 0 and 1.
         """
-        if breathing_rate != self.last_breathing_rate: # Maintaining continuity by adjusting phase when breathing rate is changes
-            self.phase = time - self.last_breathing_rate*(time - self.phase)/breathing_rate
+        if breathing_rate != self.last_breathing_rate:  # Maintaining continuity by adjusting phase when breathing rate is changes
+            self.phase = time - self.last_breathing_rate * (time - self.phase) / breathing_rate
             self.last_breathing_rate = breathing_rate
 
         radius = 0.5 + 0.5 * np.sin(2 * np.pi * breathing_rate / 60 * (time - self.phase))

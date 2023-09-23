@@ -1,4 +1,3 @@
-
 import asyncio
 import time
 
@@ -11,11 +10,12 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QSlider, QVBoxLa
 
 from Model import Model
 
-'''
+"""
 TODO: 
 - Abstract the historic series type
 - Exit the program nicely
-'''
+"""
+
 
 class CirclesWidget(QChartView):
     def __init__(self, x_values=None, y_values=None, pacer_color=None, breathing_color=None, hr_color=None):
@@ -27,7 +27,7 @@ class CirclesWidget(QChartView):
                 QSizePolicy.Preferred,
             )
         )
-        
+
         self.scene().setBackgroundBrush(Qt.white)
         self.setAlignment(Qt.AlignCenter)
 
@@ -47,7 +47,7 @@ class CirclesWidget(QChartView):
         pen = QPen(breathing_color)
         pen.setWidth(2)
         self.breath_circumference_coord.setPen(pen)
-        self.plot.addSeries(self.breath_circumference_coord)   
+        self.plot.addSeries(self.breath_circumference_coord)
 
         if x_values is not None and y_values is not None:
             self._instantiate_series(x_values, y_values)
@@ -66,7 +66,7 @@ class CirclesWidget(QChartView):
         self.plot.addAxis(self.y_axis, Qt.AlignLeft)
         self.disk.attachAxis(self.y_axis)
         self.breath_circumference_coord.attachAxis(self.y_axis)
-        
+
         self.setChart(self.plot)
 
     def _instantiate_series(self, x_values, y_values):
@@ -91,11 +91,12 @@ class CirclesWidget(QChartView):
             self.updateGeometry()  # adjusts geometry based on sizeHint
         return super().resizeEvent(event)
 
+
 class SquareWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        
+
     def sizeHint(self):
         return QSize(100, 100)
 
@@ -108,8 +109,8 @@ class SquareWidget(QWidget):
             self.setMaximumWidth(side)
             self.setMaximumHeight(side)
 
+
 class View(QChartView):
-    
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -137,28 +138,30 @@ class View(QChartView):
         self.DOTSIZE_LARGE = 5
 
         # Series parameters
-        self.UPDATE_SERIES_PERIOD = 100 # ms
-        self.UPDATE_BREATHING_SERIES_PERIOD = 50 # ms
-        self.UPDATE_PACER_PERIOD = 10 # 20 # ms
+        self.UPDATE_SERIES_PERIOD = 100  # ms
+        self.UPDATE_BREATHING_SERIES_PERIOD = 50  # ms
+        self.UPDATE_PACER_PERIOD = 10  # 20 # ms
         self.PACER_HIST_SIZE = 6000
-        self.BREATH_ACC_TIME_RANGE = 60 # s
-        self.HR_SERIES_TIME_RANGE = 300 # s
-        self.HRV_SERIES_TIME_RANGE = 300 # s
+        self.BREATH_ACC_TIME_RANGE = 60  # s
+        self.HR_SERIES_TIME_RANGE = 300  # s
+        self.HRV_SERIES_TIME_RANGE = 300  # s
 
         # Initialisation
         self.pacer_rate = 6
 
         # Breathing acceleration
-        self.chart_acc = self.create_chart(title='Breathing Acceleration', showTitle=False, showLegend=False)
+        self.chart_acc = self.create_chart(title="Breathing Acceleration", showTitle=False, showLegend=False)
         self.series_pacer = self.create_line_series(self.GOLD, self.LINEWIDTH)
         self.series_breath_acc = self.create_line_series(self.BLUE, self.LINEWIDTH)
         self.series_breath_cycle_marker = self.create_scatter_series(self.GRAY, self.DOTSIZE_SMALL)
-        self.axis_acc_x = self.create_axis(title=None, tickCount=10, rangeMin=-self.BREATH_ACC_TIME_RANGE, rangeMax=0, labelSize=10, flip=False)
+        self.axis_acc_x = self.create_axis(
+            title=None, tickCount=10, rangeMin=-self.BREATH_ACC_TIME_RANGE, rangeMax=0, labelSize=10, flip=False
+        )
         # self.axis_y_pacer = self.create_axis(title="Pacer", color=self.GOLD, rangeMin=-1, rangeMax=1)
         self.axis_y_breath_acc = self.create_axis("Chest expansion (m/s2)", self.BLUE, rangeMin=-1, rangeMax=1, labelSize=10)
 
         # Heart rate chart
-        self.chart_hr = self.create_chart(title='Heart rate', showTitle=False, showLegend=False)
+        self.chart_hr = self.create_chart(title="Heart rate", showTitle=False, showLegend=False)
         self.series_hr = self.create_scatter_series(self.RED, self.DOTSIZE_SMALL)
         self.axis_hr_y = self.create_axis(title="HR (bpm)", color=self.RED, rangeMin=50, rangeMax=80, labelSize=10)
 
@@ -167,9 +170,9 @@ class View(QChartView):
         self.series_br_marker = self.create_scatter_series(self.BLUE, self.DOTSIZE_SMALL)
         self.series_br_marker.setMarkerShape(QScatterSeries.MarkerShapeTriangle)
         self.axis_br_y = self.create_axis(title="BR (bpm)", color=self.BLUE, rangeMin=0, rangeMax=20, labelSize=10)
-        
+
         # Heart rate variability chart
-        self.chart_hrv = self.create_chart(title='Heart rate variability', showTitle=False, showLegend=False)
+        self.chart_hrv = self.create_chart(title="Heart rate variability", showTitle=False, showLegend=False)
         # self.series_hrv = self.create_spline_series(self.RED, self.LINEWIDTH)
         self.series_maxmin = self.create_spline_series(self.RED, self.LINEWIDTH)
         self.series_maxmin_marker = self.create_scatter_series(self.RED, self.DOTSIZE_SMALL)
@@ -202,16 +205,16 @@ class View(QChartView):
         self.hrv_band_2.setPen(QPen(Qt.NoPen))
 
         self.pacer_slider = QSlider(Qt.Horizontal)
-        self.pacer_slider.setRange(3*2,10*2)
-        self.pacer_slider.setValue(self.pacer_rate*2)
+        self.pacer_slider.setRange(3 * 2, 10 * 2)
+        self.pacer_slider.setValue(self.pacer_rate * 2)
         self.pacer_slider.valueChanged.connect(self.update_pacer_rate)
-        
+
         self.pacer_label = QLabel()
         self.pacer_label.setStyleSheet("QLabel {color: black}")
         self.pacer_label.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
         self.pacer_label.setText(f"{self.pacer_rate}")
         self.pacer_label.setFixedWidth(40)
-        
+
         # Configure
         self.chart_acc.addSeries(self.series_pacer)
         self.chart_acc.addSeries(self.series_breath_acc)
@@ -265,9 +268,9 @@ class View(QChartView):
         acc_widget.setStyleSheet("background-color: transparent;")
         hrv_widget = QChartView(self.chart_hrv)
         hrv_widget.setStyleSheet("background-color: transparent;")
-    
+
         self.circles_widget = CirclesWidget(*self.model.pacer.update(self.pacer_rate), self.GOLD, self.BLUE, self.RED)
-        
+
         acc_widget.setRenderHint(QPainter.Antialiasing)
         hrv_widget.setRenderHint(QPainter.Antialiasing)
         self.circles_widget.setRenderHint(QPainter.Antialiasing)
@@ -276,7 +279,7 @@ class View(QChartView):
         sliderLayout.addWidget(self.pacer_label)
         sliderLayout.addWidget(self.pacer_slider)
         sliderLayout.addSpacing(20)
-        
+
         circlesLayout = QVBoxLayout()
         circlesLayout.addWidget(self.circles_widget, alignment=Qt.AlignHCenter | Qt.AlignVCenter)
         circlesLayout.addLayout(sliderLayout)
@@ -301,7 +304,7 @@ class View(QChartView):
         self.update_acc_series_timer = QTimer()
         self.update_acc_series_timer.timeout.connect(self.update_acc_series)
         self.update_acc_series_timer.setInterval(self.UPDATE_BREATHING_SERIES_PERIOD)
-        
+
         self.pacer_timer = QTimer()
         self.pacer_timer.setInterval(self.UPDATE_PACER_PERIOD)  # ms (20 Hz)
         self.pacer_timer.timeout.connect(self.plot_circles)
@@ -312,7 +315,7 @@ class View(QChartView):
 
         self.pacer_values_hist = np.full((self.PACER_HIST_SIZE, 1), np.nan)
         self.pacer_times_hist = np.full((self.PACER_HIST_SIZE, 1), np.nan)
-        self.pacer_times_hist_rel_s = np.full(self.PACER_HIST_SIZE, np.nan) # relative seconds
+        self.pacer_times_hist_rel_s = np.full(self.PACER_HIST_SIZE, np.nan)  # relative seconds
 
     def create_chart(self, title=None, showTitle=False, showLegend=False, margins=None):
         chart = QChart()
@@ -322,7 +325,7 @@ class View(QChartView):
             chart.setMargins(margins)
             chart.layout().setContentsMargins(margins)
         return chart
-    
+
     def create_scatter_series(self, color=None, size=5):
         if color is None:
             color = self.GRAY
@@ -373,10 +376,10 @@ class View(QChartView):
             axis.setLabelsFont(font)
         if flip:
             axis.setReverse(True)
-        return axis        
+        return axis
 
     def update_pacer_rate(self):
-        self.pacer_rate = self.pacer_slider.value()/2
+        self.pacer_rate = self.pacer_slider.value() / 2
         self.pacer_label.setText(f"{self.pacer_slider.value()/2}")
 
     def plot_circles(self):
@@ -385,9 +388,9 @@ class View(QChartView):
         self.circles_widget.update_pacer_series(*coordinates)
 
         self.pacer_values_hist = np.roll(self.pacer_values_hist, -1)
-        self.pacer_values_hist[-1] = np.linalg.norm([coordinates[0][0],coordinates[1][0]]) - 0.5
+        self.pacer_values_hist[-1] = np.linalg.norm([coordinates[0][0], coordinates[1][0]]) - 0.5
         self.pacer_times_hist = np.roll(self.pacer_times_hist, -1)
-        self.pacer_times_hist[-1] = time.time_ns()/1.0e9
+        self.pacer_times_hist[-1] = time.time_ns() / 1.0e9
 
         # Breathing
         breath_coordinates = self.model.get_breath_circle_coords()
@@ -409,7 +412,7 @@ class View(QChartView):
             if not polar_device_found:
                 print("Polar device not found, retrying in 1 second")
                 await asyncio.sleep(1)
-        
+
         self.model.set_polar_sensor(device)
         await self.model.connect_sensor()
 
@@ -417,17 +420,17 @@ class View(QChartView):
         await self.model.disconnect_sensor()
 
     def update_acc_series(self):
-        
-        self.pacer_times_hist_rel_s = self.pacer_times_hist - time.time_ns()/1.0e9
-            
-        self.breath_acc_times_rel_s = self.model.breath_acc_times - time.time_ns()/1.0e9
+
+        self.pacer_times_hist_rel_s = self.pacer_times_hist - time.time_ns() / 1.0e9
+
+        self.breath_acc_times_rel_s = self.model.breath_acc_times - time.time_ns() / 1.0e9
         series_breath_acc_new = []
 
         for i, value in enumerate(self.breath_acc_times_rel_s):
             if not np.isnan(value):
                 series_breath_acc_new.append(QPointF(value, self.model.breath_acc_hist[i]))
         self.series_breath_acc.replace(series_breath_acc_new)
-        
+
         series_breath_cycle_marker_new = []
         for i, value in enumerate(self.model.breath_cycle_ids):
             if not value < 0:
@@ -438,23 +441,23 @@ class View(QChartView):
         for i, value in enumerate(self.pacer_times_hist_rel_s):
             if not np.isnan(value):
                 series_pacer_new.append(QPointF(value, self.pacer_values_hist[i]))
-                
+
         if series_pacer_new:
             self.series_pacer.replace(series_pacer_new)
 
     def update_series(self):
 
-        self.br_times_hist_rel_s = self.model.br_times_hist - time.time_ns()/1.0e9
+        self.br_times_hist_rel_s = self.model.br_times_hist - time.time_ns() / 1.0e9
 
         series_hr_new = []
         for i, value in enumerate(self.model.hr_values_hist):
             if not np.isnan(value):
                 series_hr_new.append(QPointF(self.model.ibi_times_hist_rel_s[i], value))
         self.series_hr.replace(series_hr_new)
-        
+
         if np.any(~np.isnan(self.model.hr_values_hist)):
-            max_val = np.ceil(np.nanmax(self.model.hr_values_hist[self.model.ibi_times_hist_rel_s > -self.HR_SERIES_TIME_RANGE])/5)*5
-            min_val = np.floor(np.nanmin(self.model.hr_values_hist[self.model.ibi_times_hist_rel_s > -self.HR_SERIES_TIME_RANGE])/5)*5
+            max_val = np.ceil(np.nanmax(self.model.hr_values_hist[self.model.ibi_times_hist_rel_s > -self.HR_SERIES_TIME_RANGE]) / 5) * 5
+            min_val = np.floor(np.nanmin(self.model.hr_values_hist[self.model.ibi_times_hist_rel_s > -self.HR_SERIES_TIME_RANGE]) / 5) * 5
             self.axis_hr_y.setRange(min_val, max_val)
 
         # Breathing rate plot
@@ -464,13 +467,13 @@ class View(QChartView):
                 series_br_new.append(QPointF(self.br_times_hist_rel_s[i], value))
         self.series_br.replace(series_br_new)
         self.series_br_marker.replace(series_br_new)
-        
+
         if np.any(~np.isnan(self.model.br_values_hist)):
-            max_val = np.ceil(np.nanmax(self.model.br_values_hist[self.br_times_hist_rel_s > -self.HRV_SERIES_TIME_RANGE])/5)*5
+            max_val = np.ceil(np.nanmax(self.model.br_values_hist[self.br_times_hist_rel_s > -self.HRV_SERIES_TIME_RANGE]) / 5) * 5
             self.axis_br_y.setRange(0, max_val)
 
         if np.any(~np.isnan(self.model.hrv_values_hist)):
-            max_val = np.ceil(np.nanmax(self.model.hrv_values_hist[self.model.hrv_times_hist > -self.HRV_SERIES_TIME_RANGE])/10)*10
+            max_val = np.ceil(np.nanmax(self.model.hrv_values_hist[self.model.hrv_times_hist > -self.HRV_SERIES_TIME_RANGE]) / 10) * 10
             max_val = max(max_val, 150)
             self.axis_hrv_y.setRange(0, max_val)
 
@@ -485,4 +488,3 @@ class View(QChartView):
     async def main(self):
         await self.connect_polar()
         await asyncio.gather(self.model.update_ibi(), self.model.update_acc())
-    
