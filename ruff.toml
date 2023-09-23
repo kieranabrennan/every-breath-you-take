@@ -1,8 +1,5 @@
 line-length = 120
 
-select = ["I"]
-ignore = ["E", "F"]
-
 
 [isort]
 combine-as-imports = true

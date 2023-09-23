@@ -1,4 +1,3 @@
-import asyncio
 import math
 import time
 
@@ -150,10 +149,8 @@ class PolarH10:
 
         first_rr_byte = 2
         if uint8_format:
-            hr = data[1]
             pass
         else:
-            hr = (data[2] << 8) | data[1] # uint16
             first_rr_byte += 1
         
         if energy_expenditure:

@@ -7,7 +7,7 @@ from bleak import BleakScanner
 from PySide6.QtCharts import QAreaSeries, QChart, QChartView, QLineSeries, QScatterSeries, QSplineSeries, QValueAxis
 from PySide6.QtCore import QFile, QMargins, QPointF, QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QPainter, QPen
-from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QSizePolicy, QSlider, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QSlider, QVBoxLayout, QWidget
 
 from Model import Model
 
@@ -404,7 +404,7 @@ class View(QChartView):
             for device in devices:
                 if device.name is not None and "Polar" in device.name:
                     polar_device_found = True
-                    print(f"Found Polar device")
+                    print("Found Polar device")
                     break
             if not polar_device_found:
                 print("Polar device not found, retrying in 1 second")

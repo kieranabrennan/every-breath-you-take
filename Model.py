@@ -116,7 +116,7 @@ class Model:
 
         # Exit if the HRV is too low
         if latest_hrv < self.HRV_MIN_FILTER*(np.amin(self.hrv_values_hist[-2:])):
-            print(f"Rejected low HRV value")
+            print("Rejected low HRV value")
             return
 
         # Update HRV and IBI history
