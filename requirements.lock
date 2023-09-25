@@ -18,6 +18,10 @@ bleak==0.21.1 \
     --hash=sha256:ccec260a0f5ec02dd133d68b0351c0151b2ecf3ddd0bcabc4c04a1cdd7f33256 \
     --hash=sha256:ec4a1a2772fb315b992cbaa1153070c7e26968a52b0e2727035f443a1af5c18f
     # via -r requirements.txt
+importlib-metadata==6.8.0 \
+    --hash=sha256:3ebb78df84a805d7698245025b975d9d67053cd94c79245ba4b3eb694abe68bb \
+    --hash=sha256:dbace7892d8c0c4ac1ad096662232f831d4e64f4c4545bd53016a3e9d4654743
+    # via pyinstaller
 macholib==1.16.2 \
     --hash=sha256:44c40f2cd7d6726af8fa6fe22549178d3a4dfecc35a9cd15ea916d9c83a688e0 \
     --hash=sha256:557bbfa1bb255c20e9abafe7ed6cd8046b48d9525db2f9b77d3122a63a2a8bf8
@@ -58,19 +62,23 @@ numpy==1.26.0 \
     # via
     #   -r requirements.txt
     #   scipy
-pyinstaller==5.13.2 \
-    --hash=sha256:16cbd66b59a37f4ee59373a003608d15df180a0d9eb1a29ff3bfbfae64b23d0f \
-    --hash=sha256:27cd64e7cc6b74c5b1066cbf47d75f940b71356166031deb9778a2579bb874c6 \
-    --hash=sha256:2c2fe9c52cb4577a3ac39626b84cf16cf30c2792f785502661286184f162ae0d \
-    --hash=sha256:421cd24f26144f19b66d3868b49ed673176765f92fa9f7914cd2158d25b6d17e \
-    --hash=sha256:65133ed89467edb2862036b35d7c5ebd381670412e1e4361215e289c786dd4e6 \
-    --hash=sha256:7d51734423685ab2a4324ab2981d9781b203dcae42839161a9ee98bfeaabdade \
-    --hash=sha256:8f6dd0e797ae7efdd79226f78f35eb6a4981db16c13325e962a83395c0ec7420 \
-    --hash=sha256:aadafb6f213549a5906829bb252e586e2cf72a7fbdb5731810695e6516f0ab30 \
-    --hash=sha256:b2e1c7f5cceb5e9800927ddd51acf9cc78fbaa9e79e822c48b0ee52d9ce3c892 \
-    --hash=sha256:c63ef6133eefe36c4b2f4daf4cfea3d6412ece2ca218f77aaf967e52a95ac9b8 \
-    --hash=sha256:c8e5d3489c3a7cc5f8401c2d1f48a70e588f9967e391c3b06ddac1f685f8d5d2 \
-    --hash=sha256:ddcc2b36052a70052479a9e5da1af067b4496f43686ca3cdda99f8367d0627e4
+packaging==23.1 \
+    --hash=sha256:994793af429502c4ea2ebf6bf664629d07c1a9fe974af92966e4b8d2df7edc61 \
+    --hash=sha256:a392980d2b6cffa644431898be54b0045151319d1e7ec34f0cfed48767dd334f
+    # via pyinstaller
+pyinstaller==6.0.0 \
+    --hash=sha256:0ad7cc3776ca17d0bededcc352cba2b1c89eb4817bfabaf05972b9da8c424935 \
+    --hash=sha256:16a473065291dd7879bf596fa20e65bd9d1e8aafc2cef1bffa3e42e707e2e68e \
+    --hash=sha256:438a9e0d72a57d5bba4f112d256e39ea4033c76c65414c0693d8311faa14b090 \
+    --hash=sha256:4a75bde5cda259bb31f2294960d75b9d5c148001b2b0bd20a91f9c2116675a6c \
+    --hash=sha256:52e5b3a2371d7231de17515c7c78d8d4a39d70c8c095e71d55b3b83434a193a8 \
+    --hash=sha256:5314f6f08d2bcbc031778618ba97d9098d106119c2e616b3b081171fe42f5415 \
+    --hash=sha256:68769f5e6722474bb1038e35560444659db8b951388bfe0c669bb52a640cd0eb \
+    --hash=sha256:aa922d1d73881d0820a341d2c406a571cc94630bdcdc275427c844a12e6e376e \
+    --hash=sha256:cccdad6cfe7a5db7d7eb8df2e5678f8375268739d5933214e180da300aa54e37 \
+    --hash=sha256:d702cff041f30e7a53500b630e07b081e5328d4655023319253d73935e75ade2 \
+    --hash=sha256:d84b06fb9002109bfc542e76860b81459a8585af0bbdabcfc5dcf272ef230de7 \
+    --hash=sha256:fb6af82989dac7c58bd25ed9ba3323bc443f8c1f03804f69c9f5e363bf4a021c
     # via -r requirements.txt
 pyinstaller-hooks-contrib==2023.8 \
     --hash=sha256:318ccc316fb2b8c0bbdff2456b444bf1ce0e94cb3948a0f4dd48f6fc33d41c01 \
@@ -198,6 +206,10 @@ typing-extensions==4.8.0 \
     --hash=sha256:8f92fc8806f9a6b641eaa5318da32b44d401efaac0f6678c9bc448ba3605faa0 \
     --hash=sha256:df8e4339e9cb77357558cbdbceca33c303714cf861d1eef15e1070055ae8b7ef
     # via bleak
+zipp==3.17.0 \
+    --hash=sha256:0e923e726174922dce09c53c59ad483ff7bbb8e572e00c7f7c46b88556409f31 \
+    --hash=sha256:84e64a1c28cf7e91ed2078bb8cc8c259cb19b76942096c8d7b84947690cabaf0
+    # via importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:
 setuptools==68.2.2 \
