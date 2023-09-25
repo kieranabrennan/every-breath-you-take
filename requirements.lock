@@ -84,7 +84,7 @@ pyinstaller-hooks-contrib==2023.8 \
     --hash=sha256:318ccc316fb2b8c0bbdff2456b444bf1ce0e94cb3948a0f4dd48f6fc33d41c01 \
     --hash=sha256:d091a52fbeed71cde0359aa9ad66288521a8441cfba163d9446606c5136c72a8
     # via pyinstaller
-pyobjc-core==9.2 ; platform_system == "Darwin" \
+pyobjc-core==9.2 \
     --hash=sha256:0fa950f092673883b8bd28bc18397415cabb457bf410920762109b411789ade9 \
     --hash=sha256:2d23ee539f2ba5e9f5653d75a13f575c7e36586fc0086792739e69e4c2617eda \
     --hash=sha256:41189c2c680931c0395a55691763c481fc681f454f21bb4f1644f98c24a45954 \
@@ -94,12 +94,11 @@ pyobjc-core==9.2 ; platform_system == "Darwin" \
     --hash=sha256:d734b9291fec91ff4e3ae38b9c6839debf02b79c07314476e87da8e90b2c68c3 \
     --hash=sha256:fa674a39949f5cde8e5c7bbcd24496446bfc67592b028aedbec7f81dc5fc4daa
     # via
-    #   -r requirements.txt
     #   bleak
     #   pyobjc-framework-cocoa
     #   pyobjc-framework-corebluetooth
     #   pyobjc-framework-libdispatch
-pyobjc-framework-cocoa==9.2 ; platform_system == "Darwin" \
+pyobjc-framework-cocoa==9.2 \
     --hash=sha256:312977ce2e3989073c6b324c69ba24283de206fe7acd6dbbbaf3e29238a22537 \
     --hash=sha256:32d9ac1033fac1b821ddee8c68f972a7074ad8c50bec0bea9a719034c1c2fb94 \
     --hash=sha256:3b1e6287b3149e4c6679cdbccd8e9ef6557a4e492a892e80a77df143f40026d2 \
@@ -108,18 +107,14 @@ pyobjc-framework-cocoa==9.2 ; platform_system == "Darwin" \
     --hash=sha256:aae7841cf40c26dd915f4dd828f91c6616e6b7998630b72e704750c09e00f334 \
     --hash=sha256:b236bb965e41aeb2e215d4e98a5a230d4b63252c6d26e00924ea2e69540a59d6 \
     --hash=sha256:efd78080872d8c8de6c2b97e0e4eac99d6203a5d1637aa135d071d464eb2db53
-    # via
-    #   -r requirements.txt
-    #   pyobjc-framework-corebluetooth
-pyobjc-framework-corebluetooth==9.2 ; platform_system == "Darwin" \
+    # via pyobjc-framework-corebluetooth
+pyobjc-framework-corebluetooth==9.2 \
     --hash=sha256:179532882126526e38fe716a50fb0ee8f440e0b838d290252c515e622b5d0e49 \
     --hash=sha256:256a5031ea9d8a7406541fa1b0dfac549b1de93deae8284605f9355b13fb58be \
     --hash=sha256:53d888742119d0f0c725d0b0c2389f68e8f21f0cba6d6aec288c53260a0196b6 \
     --hash=sha256:cb2481b1dfe211ae9ce55f36537dc8155dbf0dc8ff26e0bc2e13f7afb0a291d1
-    # via
-    #   -r requirements.txt
-    #   bleak
-pyobjc-framework-libdispatch==9.2 ; platform_system == "Darwin" \
+    # via bleak
+pyobjc-framework-libdispatch==9.2 \
     --hash=sha256:1a67b007113328538b57893cc7829a722270764cdbeae6d5e1460a1d911314df \
     --hash=sha256:1b107e5c3580b09553030961ea6b17abad4a5132101eab1af3ad2cb36d0f08bb \
     --hash=sha256:2e835495860d04f63c2d2f73ae3dd79da4222864c107096dc0f99e8382700026 \
@@ -128,9 +123,7 @@ pyobjc-framework-libdispatch==9.2 ; platform_system == "Darwin" \
     --hash=sha256:6fccea1a57436cf1ac50d9ebc6e3e725bcf77f829ba6b118e62e6ed7866d359d \
     --hash=sha256:83cdb672acf722717b5ecf004768f215f02ac02d7f7f2a9703da6e921ab02222 \
     --hash=sha256:88d4091d4bcb5702783d6e86b4107db973425a17d1de491543f56bd348909b60
-    # via
-    #   -r requirements.txt
-    #   bleak
+    # via bleak
 pyside6==6.5.2 \
     --hash=sha256:0356dc73c138c25b980d716e425801a61d4aa1d9f7811cf8a825499edfd4d1ae \
     --hash=sha256:ad82cb12f805c5bec7693d6f1c0d6e4ae4b9462eb368a81bc0d3091de8fae76e \
