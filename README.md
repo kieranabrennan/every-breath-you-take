@@ -16,6 +16,8 @@ In any moment it is possible to restore balance to the autonomic nervous system 
 - Explore how heart rate vairability repsonses to different breathing rates
 
 ## Installation and usage
+
+Works with Polar H10, with Firmware Version 5.0.0 or later
     
     python -m venv venv
     source venv/bin/activate  # On Windows, use `my_project_env\Scripts\activate`
