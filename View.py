@@ -158,6 +158,7 @@ class View(QChartView):
         # Heart rate chart
         self.chart_hr = self.create_chart(title='Heart rate', showTitle=False, showLegend=False)
         self.series_hr = self.create_scatter_series(self.RED, self.DOTSIZE_SMALL)
+        self.series_hr_spline = self.create_spline_series(self.RED, self.LINEWIDTH)  # New spline series
         self.axis_hr_y = self.create_axis(title="HR (bpm)", color=self.RED, rangeMin=50, rangeMax=80, labelSize=10)
 
         # Breathing rate
@@ -215,12 +216,15 @@ class View(QChartView):
         self.chart_acc.addSeries(self.series_breath_acc)
         self.chart_acc.addSeries(self.series_breath_cycle_marker)
         self.chart_acc.addSeries(self.series_hr)
+        self.chart_acc.addSeries(self.series_hr_spline)
         self.chart_acc.addAxis(self.axis_acc_x, Qt.AlignBottom)
         self.chart_acc.addAxis(self.axis_y_breath_acc, Qt.AlignRight)
         self.chart_acc.addAxis(self.axis_hr_y, Qt.AlignLeft)
         self.series_pacer.attachAxis(self.axis_acc_x)
         self.series_pacer.attachAxis(self.axis_y_breath_acc)
         self.series_breath_acc.attachAxis(self.axis_acc_x)
+        self.series_hr_spline.attachAxis(self.axis_acc_x)  # Attach the new spline series
+        self.series_hr_spline.attachAxis(self.axis_hr_y)  # Attach the new spline series
         self.series_breath_acc.attachAxis(self.axis_y_breath_acc)
         self.series_breath_cycle_marker.attachAxis(self.axis_acc_x)
         self.series_breath_cycle_marker.attachAxis(self.axis_y_breath_acc)
@@ -449,6 +453,8 @@ class View(QChartView):
             if not np.isnan(value):
                 series_hr_new.append(QPointF(self.model.ibi_times_hist_rel_s[i], value))
         self.series_hr.replace(series_hr_new)
+        self.series_hr_spline.replace(series_hr_new)  # Update the spline series
+
         
         if np.any(~np.isnan(self.model.hr_values_hist)):
             max_val = np.ceil(np.nanmax(self.model.hr_values_hist[self.model.ibi_times_hist_rel_s > -self.HR_SERIES_TIME_RANGE])/5)*5
