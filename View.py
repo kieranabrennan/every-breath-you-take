@@ -1,6 +1,6 @@
-
+import sys
 import asyncio
-from PySide6.QtCore import QTimer, Qt, QPointF, QMargins, QSize, QFile
+from PySide6.QtCore import QTimer, Qt, QPointF, QMargins, QSize, QFile, Slot
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QSizePolicy, QSlider, QLabel, QWidget, QGridLayout
 from PySide6.QtCharts import QChart, QChartView, QLineSeries, QValueAxis, QScatterSeries, QSplineSeries, QAreaSeries
 from PySide6.QtGui import QPen, QColor, QPainter, QFont
@@ -8,7 +8,8 @@ from bleak import BleakScanner
 import time
 import numpy as np
 from Model import Model
-
+from sensor import SensorHandler
+import logging
 '''
 TODO: 
 - Abstract the historic series type
@@ -110,8 +111,9 @@ class View(QChartView):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-
+        self.logger = logging.getLogger(__name__)
         self.model = Model()
+        self.sensor_handler = SensorHandler()
 
         # Load the stylesheet from the file
         style_file = QFile("style.qss")
@@ -391,25 +393,6 @@ class View(QChartView):
         breath_coordinates = self.model.get_breath_circle_coords()
         self.circles_widget.update_breath_series(*breath_coordinates)
 
-    async def connect_polar(self):
-
-        polar_device_found = False
-        print("Looking for Polar device...")
-        while not polar_device_found:
-
-            devices = await BleakScanner.discover()
-            print(f"Found {len(devices)} BLE devices")
-            for device in devices:
-                if device.name is not None and "Polar" in device.name:
-                    polar_device_found = True
-                    print(f"Found Polar device")
-                    break
-            if not polar_device_found:
-                print("Polar device not found, retrying in 1 second")
-                await asyncio.sleep(1)
-        
-        self.model.set_polar_sensor(device)
-        await self.model.connect_sensor()
 
     async def disconnect_polar(self):
         await self.model.disconnect_sensor()
@@ -480,7 +463,20 @@ class View(QChartView):
         self.series_maxmin.replace(series_maxmin_new)
         self.series_maxmin_marker.replace(series_maxmin_new)
 
+    async def set_first_sensor_found(self):
+        ''' List valid devices and connect to first one'''
+        
+        valid_devices = self.sensor_handler.get_valid_device_names()
+        
+        selected_device_name = str(valid_devices[0]) # Select first device
+        self.logger.info(f"Connecting to {selected_device_name}")
+        sensor = self.sensor_handler.create_sensor_client(selected_device_name)
+        try:
+            await self.model.set_and_connect_sensor(sensor)
+        except Exception as e:
+            self.logger.error(f"Error: Failed to connect – {e}")
+            sys.exit(1)
+
     async def main(self):
-        await self.connect_polar()
-        await asyncio.gather(self.model.update_ibi(), self.model.update_acc())
-    
+        await self.sensor_handler.scan()
+        await self.set_first_sensor_found()

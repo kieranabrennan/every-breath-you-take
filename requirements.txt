@@ -1,4 +1,5 @@
 bleak==0.21.1
+blehrm>=0.1.4
 numpy>=1.25.2
 pyobjc-core==9.2; platform_system == 'Darwin'
 pyobjc-framework-Cocoa==9.2; platform_system == 'Darwin'

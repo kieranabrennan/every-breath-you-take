@@ -1,15 +1,16 @@
 import numpy as np
-import asyncio
-from PolarH10 import PolarH10
 import time
 from Pacer import Pacer
 from scipy import signal
+from blehrm.interface import BlehrmClientInterface
+import logging
 
 class Model:
 
     def __init__(self):
         
-        self.polar_sensor = None
+        self.logger = logging.getLogger(__name__)
+        self.sensor_client = None
         self.pacer = Pacer()
         self.breathing_circle_radius = -0.5
         self.hr_circle_radius = -0.5
@@ -85,16 +86,20 @@ class Model:
         self.hr_extrema_ids = np.full(self.HRV_HIST_SIZE, -1, dtype=int)
         self.breath_cycle_ids = np.full(self.BR_HIST_SIZE, -1, dtype=int)
         
-    def set_polar_sensor(self, device):
-        self.polar_sensor = PolarH10(device)
 
-    async def connect_sensor(self):
-        await self.polar_sensor.connect()
-        await self.polar_sensor.get_device_info()
-        await self.polar_sensor.print_device_info()
+    async def set_and_connect_sensor(self, sensor: BlehrmClientInterface):
+        self.sensor_client = sensor
+        await self.sensor_client.connect()    
+        await self.sensor_client.get_device_info()
+        await self.sensor_client.print_device_info()
         
+        await self.sensor_client.start_ibi_stream(callback=self.handle_ibi_callback)
+        await self.sensor_client.start_acc_stream(callback=self.handle_acc_callback)
+    
+
+    
     async def disconnect_sensor(self):
-        await self.polar_sensor.disconnect()
+        await self.sensor_client.disconnect()
 
     def update_hrv(self):
 
@@ -162,35 +167,29 @@ class Model:
 
         self.hr_coherence = peak_power/total_power
 
-    async def update_ibi(self):
-        await self.polar_sensor.start_hr_stream()
+    def handle_ibi_callback(self, data):
 
-        while True:
-            await asyncio.sleep(self.IBI_UPDATE_LOOP_PERIOD)
-            
-            # Updating IBI history
-            while not self.polar_sensor.ibi_queue_is_empty():
-                t, ibi = self.polar_sensor.dequeue_ibi() # t is when value was added to the queue
-                
-                # Skip unreasonably low or high values
-                if ibi < self.IBI_MIN_FILTER or ibi > self.IBI_MAX_FILTER:
-                    continue
+        t, ibi = data
+        
+        # Skip unreasonably low or high values
+        if ibi < self.IBI_MIN_FILTER or ibi > self.IBI_MAX_FILTER:
+            return
 
-                # Update IBI and HR history
-                self.ibi_values_hist = np.roll(self.ibi_values_hist, -1)
-                self.ibi_values_hist[-1] = ibi
-                self.hr_values_hist = 60.0/(self.ibi_values_hist/1000.0)
+        # Update IBI and HR history
+        self.ibi_values_hist = np.roll(self.ibi_values_hist, -1)
+        self.ibi_values_hist[-1] = ibi
+        self.hr_values_hist = 60.0/(self.ibi_values_hist/1000.0)
 
-                self.ibi_times_hist_rel_s = -np.flip(np.cumsum(np.flip(self.ibi_values_hist)))/1000.0 # seconds relative to the last value
-                self.ibi_times_hist_rel_s = np.roll(self.ibi_times_hist_rel_s, -1)
-                self.ibi_times_hist_rel_s[-1] = 0
+        self.ibi_times_hist_rel_s = -np.flip(np.cumsum(np.flip(self.ibi_values_hist)))/1000.0 # seconds relative to the last value
+        self.ibi_times_hist_rel_s = np.roll(self.ibi_times_hist_rel_s, -1)
+        self.ibi_times_hist_rel_s[-1] = 0
 
-                # Update index of heart rate extrema
-                self.hr_extrema_ids = self.hr_extrema_ids - 1
-                self.hr_extrema_ids[self.hr_extrema_ids < -1] = -1
-                
-                self.update_hrv()
-                # self.update_hrv_spectrum()
+        # Update index of heart rate extrema
+        self.hr_extrema_ids = self.hr_extrema_ids - 1
+        self.hr_extrema_ids[self.hr_extrema_ids < -1] = -1
+        
+        self.update_hrv()
+        # self.update_hrv_spectrum()
 
     def update_breathing_rate(self):
 
@@ -327,31 +326,24 @@ class Model:
         y = self.breathing_circle_radius * self.pacer.sin_theta
         return (x, y)
 
-    async def update_acc(self): # pmd: polar measurement data
-        
-        await self.polar_sensor.start_acc_stream()
-        
-        while True:
-            await asyncio.sleep(self.ACC_UPDATE_LOOP_PERIOD)
+    def handle_acc_callback(self, data):
+        # Get the latest sensor data
+        t = data[0]
+        acc = data[1:]
+
+        # Update the acceleration vectors
+        self.update_acc_vectors(acc)
+
+        # Update breathing acceleration history
+        new_breathing_acc = self.update_breathing_acc(t)
+
+        # Update the breathing acceleration history
+        if new_breathing_acc:
+            self.update_breathing_spectrum()
+            new_breathing_cycle = self.update_breathing_cycle()
             
-            # Updating the acceleration history
-            while not self.polar_sensor.acc_queue_is_empty():
-                # Get the latest sensor data
-                t, acc = self.polar_sensor.dequeue_acc()
-
-                # Update the acceleration vectors
-                self.update_acc_vectors(acc)
-
-                # Update breathing acceleration history
-                new_breathing_acc = self.update_breathing_acc(t)
-
-                # Update the breathing acceleration history
-                if new_breathing_acc:
-                    self.update_breathing_spectrum()
-                    new_breathing_cycle = self.update_breathing_cycle()
-                    
-                    if new_breathing_cycle:
-                        self.update_breathing_rate()
+            if new_breathing_cycle:
+                self.update_breathing_rate()
 
 
     

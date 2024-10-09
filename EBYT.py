@@ -8,8 +8,13 @@ import asyncio
 from PySide6.QtWidgets import QApplication
 from qasync import QEventLoop
 from View import View
+import logging
+
+logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     app = QApplication(sys.argv)
     loop = QEventLoop(app)
@@ -20,4 +25,5 @@ if __name__ == "__main__":
     plot.resize(1200, 600)
     plot.show()
 
-    loop.run_until_complete(plot.main())
+    loop.create_task(plot.main())
+    loop.run_forever()
