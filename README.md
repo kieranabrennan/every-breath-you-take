@@ -24,6 +24,8 @@ Works with Polar H10, with Firmware Version 5.0.0 or later
     pip install -r requirements.txt
     python EBYT.py 
 
+Tested with Python 3.9, 3.10 3.12
+
 Bundle into an application with pyinstaller:
 
     pyinstaller EBYT.spec
