@@ -1,0 +1,90 @@
+QSlider::groove:horizontal {
+    border: 1px solid #bbb;
+    background: white;
+    height: 6px;
+    border-radius: 3px;
+}
+
+QSlider::sub-page:horizontal {
+    background: rgb(212, 175, 55);
+    /* border: 1px solid #777; */
+    height: 6px;
+    border-radius: 3px;
+}
+
+QSlider::add-page:horizontal {
+    background: #fff;
+    border: 1px solid rgb(212, 175, 55);
+    height: 6px;
+    border-radius: 3px;
+}
+
+QSlider::handle:horizontal {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #eee, stop:1 #999);
+    /* border: 1px solid #777; */
+    width: 16px;
+    height: 16px;
+    margin-top: -5px;
+    margin-bottom: -5px;
+    border-radius: 8px;
+}
+
+QPushButton {
+    border-radius: 12px;
+    background-color: rgb(255,255,255);
+    color: rgb(15,15,15);
+    padding: 5px 15px;
+    font-size: 14px;
+    min-width: 100px;
+
+}
+
+QPushButton:hover {
+    background: qlineargradient(
+        x1: 0, y1: 0, 
+        x2: 1, y2: 1, 
+        stop: 0 rgb(252, 239, 197), 
+        stop: 1 rgb(212, 175, 55)
+    );
+    color: rgb(255,255,255);
+}
+
+QPushButton:pressed {
+    background: qlineargradient(
+        x1: 0, y1: 0, 
+        x2: 1, y2: 1, 
+        stop: 0 rgb(212, 175, 55), 
+        stop: 1 rgb(196, 151, 4)
+    );
+
+}
+
+QPushButton:flat {
+    border: none;
+    background-color: transparent;
+    color: #b0b0b0;
+}
+
+QPushButton:default {
+    border-color: #7a7a7a;
+}
+
+QComboBox {
+    color: black;               /* Black text color */
+}
+
+QLabel {
+    color: black;               /* Black text color */
+}
+
+QWidget#controlWidget {
+    background: qlineargradient(
+        x1: 0, y1: 0, 
+        x2: 1, y2: 1, 
+        stop: 0 rgb(255,255,255), 
+        stop: 1 rgb(190,190,190)
+    );
+    margin: 0 px;
+    padding: 0 px;
+}
