@@ -24,7 +24,6 @@ class SensorHandler():
 
         self.valid_devices = {}
         while len(self.valid_devices) == 0: # Loop until supported device is found
-            self.logger.info("Invoking Bleak Scanner")
             ble_devices = await BleakScanner.discover()
 
             supported_devices = blehrm.get_supported_devices(ble_devices)
