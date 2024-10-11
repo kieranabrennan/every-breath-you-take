@@ -1,11 +1,12 @@
 import sys
-from PySide6.QtCore import QTimer, Qt, QPointF
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QSlider, QLabel
+from PySide6.QtCore import QTimer, Qt, QPointF, Slot
+from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QSlider, QLabel, QWidget, QComboBox, QPushButton, QGraphicsDropShadowEffect
 from PySide6.QtCharts import QChartView, QLineSeries, QScatterSeries, QAreaSeries
-from PySide6.QtGui import QPen, QPainter
+from PySide6.QtGui import QPen, QPainter, QColor
 import time
 import numpy as np
 import logging
+import asyncio
 from Model import Model
 from sensor import SensorHandler
 from views.widgets import CirclesWidget, SquareWidget
@@ -21,11 +22,15 @@ TODO:
 
 class View(QChartView):
     
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.logger = logging.getLogger(__name__)
         self.model = Model()
+        self.model.sensor_connected.connect(self._on_sensor_connected)
+
         self.sensor_handler = SensorHandler()
+        self.sensor_handler.scan_complete.connect(self._on_scan_complete)
 
         self.setStyleSheet(get_stylesheet("styles/style.qss"))
 
@@ -41,8 +46,22 @@ class View(QChartView):
         # Initialisation
         self.pacer_rate = 6
 
+        self.create_breath_chart()
+        self.create_hrv_chart()
+        self.create_circles_layout()
+        self.set_view_layout()
+        self.start_view_update()
+
+        self.pacer_values_hist = np.full((self.PACER_HIST_SIZE, 1), np.nan)
+        self.pacer_times_hist = np.full((self.PACER_HIST_SIZE, 1), np.nan)
+        self.pacer_times_hist_rel_s = np.full(self.PACER_HIST_SIZE, np.nan) # relative seconds
+
+    def create_breath_chart(self):
+        '''
+        Creates the breath chart which shows pacer, heart rate, and chest acceleration
+        '''
         # Breathing acceleration
-        self.chart_acc = create_chart(title='Breathing Acceleration', showTitle=False, showLegend=False)
+        self.chart_breath = create_chart(title='Breathing Acceleration', showTitle=False, showLegend=False)
         self.series_pacer = create_line_series(GOLD, LINEWIDTH)
         self.series_breath_acc = create_line_series(BLUE, LINEWIDTH)
         self.series_breath_cycle_marker = create_scatter_series(GRAY, DOTSIZE_SMALL)
@@ -50,19 +69,39 @@ class View(QChartView):
         # self.axis_y_pacer = create_axis(title="Pacer", color=GOLD, rangeMin=-1, rangeMax=1)
         self.axis_y_breath_acc = create_axis("Chest expansion (m/s2)", BLUE, rangeMin=-1, rangeMax=1, labelSize=10)
 
-        # Heart rate chart
-        self.chart_hr = create_chart(title='Heart rate', showTitle=False, showLegend=False)
         self.series_hr = create_scatter_series(RED, DOTSIZE_SMALL)
         self.axis_hr_y = create_axis(title="HR (bpm)", color=RED, rangeMin=50, rangeMax=80, labelSize=10)
+
+        # Configure
+        self.chart_breath.addSeries(self.series_pacer)
+        self.chart_breath.addSeries(self.series_breath_acc)
+        self.chart_breath.addSeries(self.series_breath_cycle_marker)
+        self.chart_breath.addSeries(self.series_hr)
+        self.chart_breath.addAxis(self.axis_acc_x, Qt.AlignBottom)
+        self.chart_breath.addAxis(self.axis_y_breath_acc, Qt.AlignRight)
+        self.chart_breath.addAxis(self.axis_hr_y, Qt.AlignLeft)
+        self.series_pacer.attachAxis(self.axis_acc_x)
+        self.series_pacer.attachAxis(self.axis_y_breath_acc)
+        self.series_breath_acc.attachAxis(self.axis_acc_x)
+        self.series_breath_acc.attachAxis(self.axis_y_breath_acc)
+        self.series_breath_cycle_marker.attachAxis(self.axis_acc_x)
+        self.series_breath_cycle_marker.attachAxis(self.axis_y_breath_acc)
+        self.series_hr.attachAxis(self.axis_acc_x)
+        self.series_hr.attachAxis(self.axis_hr_y)
+
+    def create_hrv_chart(self):
+        '''
+        Chart showing breathing rate and heart rate variability
+        '''
+        # Heart rate variability chart
+        self.chart_hrv = create_chart(title='Heart rate variability', showTitle=False, showLegend=False)
 
         # Breathing rate
         self.series_br = create_spline_series(BLUE, LINEWIDTH)
         self.series_br_marker = create_scatter_series(BLUE, DOTSIZE_SMALL)
         self.series_br_marker.setMarkerShape(QScatterSeries.MarkerShapeTriangle)
-        self.axis_br_y = create_axis(title="BR (bpm)", color=BLUE, rangeMin=0, rangeMax=20, labelSize=10)
+        self.axis_br_y = create_axis(title="BR (bpm)", color=BLUE, rangeMin=0, rangeMax=20, labelSize=10)\
         
-        # Heart rate variability chart
-        self.chart_hrv = create_chart(title='Heart rate variability', showTitle=False, showLegend=False)
         # self.series_hrv = create_spline_series(RED, LINEWIDTH)
         self.series_maxmin = create_spline_series(RED, LINEWIDTH)
         self.series_maxmin_marker = create_scatter_series(RED, DOTSIZE_SMALL)
@@ -94,34 +133,6 @@ class View(QChartView):
         self.hrv_band_2.setOpacity(0.2)
         self.hrv_band_2.setPen(QPen(Qt.NoPen))
 
-        self.pacer_slider = QSlider(Qt.Horizontal)
-        self.pacer_slider.setRange(3*2,10*2)
-        self.pacer_slider.setValue(self.pacer_rate*2)
-        self.pacer_slider.valueChanged.connect(self.update_pacer_rate)
-        
-        self.pacer_label = QLabel()
-        self.pacer_label.setStyleSheet("QLabel {color: black}")
-        self.pacer_label.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
-        self.pacer_label.setText(f"{self.pacer_rate}")
-        self.pacer_label.setFixedWidth(40)
-        
-        # Configure
-        self.chart_acc.addSeries(self.series_pacer)
-        self.chart_acc.addSeries(self.series_breath_acc)
-        self.chart_acc.addSeries(self.series_breath_cycle_marker)
-        self.chart_acc.addSeries(self.series_hr)
-        self.chart_acc.addAxis(self.axis_acc_x, Qt.AlignBottom)
-        self.chart_acc.addAxis(self.axis_y_breath_acc, Qt.AlignRight)
-        self.chart_acc.addAxis(self.axis_hr_y, Qt.AlignLeft)
-        self.series_pacer.attachAxis(self.axis_acc_x)
-        self.series_pacer.attachAxis(self.axis_y_breath_acc)
-        self.series_breath_acc.attachAxis(self.axis_acc_x)
-        self.series_breath_acc.attachAxis(self.axis_y_breath_acc)
-        self.series_breath_cycle_marker.attachAxis(self.axis_acc_x)
-        self.series_breath_cycle_marker.attachAxis(self.axis_y_breath_acc)
-        self.series_hr.attachAxis(self.axis_acc_x)
-        self.series_hr.attachAxis(self.axis_hr_y)
-
         # Heart rate variability chart
         # self.chart_hrv.addSeries(self.series_hrv)
         self.chart_hrv.addSeries(self.hrv_band_0)
@@ -151,42 +162,91 @@ class View(QChartView):
         self.series_br_marker.attachAxis(self.axis_hrv_x)
         self.series_br_marker.attachAxis(self.axis_br_y)
 
-        # Create a layout
-        layout = QVBoxLayout()
+    def create_circles_layout(self):
 
-        acc_widget = QChartView(self.chart_acc)
-        acc_widget.setStyleSheet("background-color: transparent;")
-        hrv_widget = QChartView(self.chart_hrv)
-        hrv_widget.setStyleSheet("background-color: transparent;")
-    
         self.circles_widget = CirclesWidget(*self.model.pacer.update(self.pacer_rate), GOLD, BLUE, RED)
-        
-        acc_widget.setRenderHint(QPainter.Antialiasing)
-        hrv_widget.setRenderHint(QPainter.Antialiasing)
         self.circles_widget.setRenderHint(QPainter.Antialiasing)
+        
+        self.pacer_slider = QSlider(Qt.Horizontal)
+        self.pacer_slider.setRange(3*2,10*2)
+        self.pacer_slider.setValue(self.pacer_rate*2)
+        self.pacer_slider.valueChanged.connect(self.update_pacer_rate)
+        
+        self.pacer_label = QLabel()
+        self.pacer_label.setStyleSheet("QLabel {color: black}")
+        self.pacer_label.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        self.pacer_label.setText(f"{self.pacer_rate}")
+        self.pacer_label.setFixedWidth(40)
 
         sliderLayout = QHBoxLayout()
         sliderLayout.addWidget(self.pacer_label)
         sliderLayout.addWidget(self.pacer_slider)
         sliderLayout.addSpacing(20)
         
-        circlesLayout = QVBoxLayout()
-        circlesLayout.addWidget(self.circles_widget, alignment=Qt.AlignHCenter | Qt.AlignVCenter)
-        circlesLayout.addLayout(sliderLayout)
+        circlesAndSlider = QVBoxLayout()
+        circlesAndSlider.addWidget(self.circles_widget, alignment=Qt.AlignHCenter | Qt.AlignVCenter)
+        circlesAndSlider.addLayout(sliderLayout)
 
-        squareContainer = SquareWidget()
-        squareContainer.setLayout(circlesLayout)
+        self.circles_layout = SquareWidget()
+        self.circles_layout.setLayout(circlesAndSlider)
+
+    def set_view_layout(self):
+        
+        layout = QVBoxLayout()
+        graphLayout = QVBoxLayout()
+
+        acc_widget = QChartView(self.chart_breath)
+        acc_widget.setStyleSheet("background-color: transparent;")
+        hrv_widget = QChartView(self.chart_hrv)
+        hrv_widget.setStyleSheet("background-color: transparent;")
+        acc_widget.setRenderHint(QPainter.Antialiasing)
+        hrv_widget.setRenderHint(QPainter.Antialiasing)
 
         topRowLayout = QHBoxLayout()
-        topRowLayout.addWidget(squareContainer, stretch=1)
+        topRowLayout.addWidget(self.circles_layout, stretch=1)
         topRowLayout.addWidget(acc_widget, stretch=3)
+        
+        self.message_box = QLabel("Scanning...")
+        self.message_box.setFixedWidth(150)
+        self.message_box.setFixedHeight(15)
+        self.message_box.setAlignment(Qt.AlignLeft)
 
-        layout.addLayout(topRowLayout, stretch=1)
-        layout.addWidget(hrv_widget, stretch=1)
-        layout.setContentsMargins(0, 0, 0, 0)
+        self.scan_button = QPushButton("Scan")
+        self.scan_button.clicked.connect(self._on_scan_button_press)
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(10)
+        shadow.setOffset(20, 20)
+        shadow.setColor(QColor(255, 255, 255, 255))  # Semi-transparent black shadow
+        self.scan_button.setGraphicsEffect(shadow)
+
+        self.device_menu = QComboBox()
+        self.connect_button = QPushButton("Connect")
+        self.connect_button.clicked.connect(self._on_connect_button_press)
+
+        controlLayout = QHBoxLayout()
+        controlLayout.addStretch(1)
+        controlLayout.addWidget(self.message_box)
+        # controlLayout.addStretch(1)
+        controlLayout.addWidget(self.scan_button)
+        controlLayout.addWidget(self.device_menu)
+        controlLayout.addWidget(self.connect_button)
+        controlLayout.addStretch(2)
+        
+        controlWidget = QWidget()
+        controlWidget.setObjectName("controlWidget")
+        controlWidget.setLayout(controlLayout)
+
+        graphLayout.addLayout(topRowLayout, stretch=1)
+        graphLayout.addWidget(hrv_widget, stretch=1)
+        graphLayout.setContentsMargins(0, 0, 0, 0)
+
+        layout.addLayout(graphLayout, stretch=10)
+        layout.addWidget(controlWidget, stretch=1)
+
         self.setLayout(layout)
 
-        # Kick off the timer
+    def start_view_update(self):
+
         self.update_series_timer = QTimer()
         self.update_series_timer.timeout.connect(self.update_series)
         self.update_series_timer.setInterval(self.UPDATE_SERIES_PERIOD)
@@ -202,10 +262,6 @@ class View(QChartView):
         self.update_acc_series_timer.start()
         self.update_series_timer.start()
         self.pacer_timer.start()
-
-        self.pacer_values_hist = np.full((self.PACER_HIST_SIZE, 1), np.nan)
-        self.pacer_times_hist = np.full((self.PACER_HIST_SIZE, 1), np.nan)
-        self.pacer_times_hist_rel_s = np.full(self.PACER_HIST_SIZE, np.nan) # relative seconds
 
     def update_pacer_rate(self):
         self.pacer_rate = self.pacer_slider.value()/2
@@ -224,9 +280,6 @@ class View(QChartView):
         # Breathing
         breath_coordinates = self.model.get_breath_circle_coords()
         self.circles_widget.update_breath_series(*breath_coordinates)
-
-    async def disconnect_polar(self):
-        await self.model.disconnect_sensor()
 
     def update_acc_series(self):
         
@@ -302,6 +355,9 @@ class View(QChartView):
         selected_device_name = str(valid_devices[0]) # Select first device
         self.logger.info(f"Connecting to {selected_device_name}")
         sensor = self.sensor_handler.create_sensor_client(selected_device_name)
+        await self.set_sensor(sensor)
+
+    async def set_sensor(self, sensor):
         try:
             await self.model.set_and_connect_sensor(sensor)
         except Exception as e:
@@ -310,4 +366,30 @@ class View(QChartView):
 
     async def main(self):
         await self.sensor_handler.scan()
-        await self.set_first_sensor_found()
+
+    @Slot()
+    def _on_scan_button_press(self):
+        self.message_box.setText("Scanning...")
+        asyncio.create_task(self.sensor_handler.scan())
+
+    @Slot()
+    def _on_scan_complete(self):
+        self.message_box.setText("Select a sensor")
+        self.device_menu.clear()
+        self.device_menu.addItems(self.sensor_handler.get_valid_device_names())
+
+    @Slot()
+    def _on_connect_button_press(self):
+        ''' Connect to the sensor selected in the device menu
+        '''
+        self.message_box.setText("Connecting...")
+        selected_device_name = self.device_menu.currentText()
+        self.logger.info(f"Conencting to sensor: {selected_device_name}")
+        if not selected_device_name:
+            return
+        sensor = self.sensor_handler.create_sensor_client(selected_device_name)
+        asyncio.create_task(self.set_sensor(sensor))
+    
+    @Slot()
+    def _on_sensor_connected(self):
+        self.message_box.setText("Connected")

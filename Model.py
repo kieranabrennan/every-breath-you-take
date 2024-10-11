@@ -4,11 +4,14 @@ from Pacer import Pacer
 from scipy import signal
 from blehrm.interface import BlehrmClientInterface
 import logging
+from PySide6.QtCore import QObject, Signal
 
-class Model:
-
+class Model(QObject):
+    
+    sensor_connected = Signal()
+    
     def __init__(self):
-        
+        super().__init__()  
         self.logger = logging.getLogger(__name__)
         self.sensor_client = None
         self.pacer = Pacer()
@@ -95,7 +98,8 @@ class Model:
         
         await self.sensor_client.start_ibi_stream(callback=self.handle_ibi_callback)
         await self.sensor_client.start_acc_stream(callback=self.handle_acc_callback)
-    
+        
+        self.sensor_connected.emit()
 
     
     async def disconnect_sensor(self):

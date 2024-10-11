@@ -3,8 +3,10 @@ from bleak import BleakScanner, BLEDevice
 import asyncio
 from typing import Dict
 import logging
-
-class SensorHandler():
+from PySide6.QtCore import QObject, Signal
+class SensorHandler(QObject):
+    
+    scan_complete = Signal()
 
     def __init__(self):
         super().__init__()
@@ -31,6 +33,8 @@ class SensorHandler():
             self.valid_devices = {device.name: device for device, device_type in supported_devices}
             self.logger.info(f"Found {len(ble_devices)} BLE devices, {len(self.valid_devices)} of which were valid")
             await asyncio.sleep(1)
+
+        self.scan_complete.emit()
 
     def create_sensor_client(self, device_name):
         return blehrm.create_client(self.valid_devices[device_name])
