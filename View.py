@@ -14,12 +14,6 @@ from views.charts import create_chart, create_scatter_series, create_line_series
 from styles.colours import RED, YELLOW, ORANGE, GREEN, BLUE, GRAY, GOLD, LINEWIDTH, DOTSIZE_LARGE, DOTSIZE_SMALL
 from styles.utils import get_stylesheet
 
-'''
-TODO: 
-- Abstract the historic series type
-- Exit the program nicely
-'''
-
 class View(QChartView):
     
 
@@ -311,16 +305,8 @@ class View(QChartView):
 
         self.br_times_hist_rel_s = self.model.br_times_hist - time.time_ns()/1.0e9
 
-        series_hr_new = []
-        for i, value in enumerate(self.model.hr_values_hist):
-            if not np.isnan(value):
-                series_hr_new.append(QPointF(self.model.ibi_times_hist_rel_s[i], value))
+        series_hr_new = self.model.hrv_analyser.hr_history.get_qpoint_list()
         self.series_hr.replace(series_hr_new)
-        
-        if np.any(~np.isnan(self.model.hr_values_hist)):
-            max_val = np.ceil(np.nanmax(self.model.hr_values_hist[self.model.ibi_times_hist_rel_s > -self.HR_SERIES_TIME_RANGE])/5)*5
-            min_val = np.floor(np.nanmin(self.model.hr_values_hist[self.model.ibi_times_hist_rel_s > -self.HR_SERIES_TIME_RANGE])/5)*5
-            self.axis_hr_y.setRange(min_val, max_val)
 
         # Breathing rate plot
         series_br_new = []
@@ -334,16 +320,8 @@ class View(QChartView):
             max_val = np.ceil(np.nanmax(self.model.br_values_hist[self.br_times_hist_rel_s > -self.HRV_SERIES_TIME_RANGE])/5)*5
             self.axis_br_y.setRange(0, max_val)
 
-        if np.any(~np.isnan(self.model.hrv_values_hist)):
-            max_val = np.ceil(np.nanmax(self.model.hrv_values_hist[self.model.hrv_times_hist > -self.HRV_SERIES_TIME_RANGE])/10)*10
-            max_val = max(max_val, 150)
-            self.axis_hrv_y.setRange(0, max_val)
-
         # RMSSD Series
-        series_maxmin_new = []
-        for i, value in enumerate(self.model.maxmin_values_hist):
-            if not np.isnan(value):
-                series_maxmin_new.append(QPointF(self.br_times_hist_rel_s[i], value))
+        series_maxmin_new = self.model.hrv_analyser.maxmin_history.get_qpoint_list()
         self.series_maxmin.replace(series_maxmin_new)
         self.series_maxmin_marker.replace(series_maxmin_new)
 

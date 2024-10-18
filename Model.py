@@ -5,6 +5,7 @@ from scipy import signal
 from blehrm.interface import BlehrmClientInterface
 import logging
 from PySide6.QtCore import QObject, Signal
+from analysis.HrvAnalyser import HrvAnalyser
 
 class Model(QObject):
     
@@ -18,15 +19,13 @@ class Model(QObject):
         self.breathing_circle_radius = -0.5
         self.hr_circle_radius = -0.5
 
+        self.hrv_analyser = HrvAnalyser()
+
         # Sample rates
-        self.ACC_UPDATE_LOOP_PERIOD = 0.01 # s, time to sleep between accelerometer updates
-        self.IBI_UPDATE_LOOP_PERIOD = 0.01 # s, time to sleep between IBI updates
-        self.ACC_HIST_SAMPLE_RATE = 20 # Hz, rate to subsample acceleration (raw data @ 200 Hz)
         self.BR_ACC_SAMPLE_RATE = 10 # Hz, rate to subsample breathing acceleration
         
         # History sizes
         self.BR_ACC_HIST_SIZE = 1200 # 
-        self.IBI_HIST_SIZE = 400 # roughly number of seconds (assuming 60 bpm avg)
         self.HRV_HIST_SIZE = 500 
         self.BR_HIST_SIZE = 500 # Fast breathing 20 breaths per minute, sampled once every breathing cycle, over 10 minutes this is 200 values
 
@@ -38,18 +37,10 @@ class Model(QObject):
         # Breathing signal parameters
         self.BR_MAX_FILTER = 30 # breaths per minute maximum
 
-        # HRV signal parameters
-        self.IBI_MIN_FILTER = 300 # ms
-        self.IBI_MAX_FILTER = 1600 # ms
-        self.HRV_MIN_FILTER = 0.2 # percentage allowable of last two HRV values
-
         # Initialisation
         self.acc_gravity = np.full(3, np.nan)
         self.acc_zero_centred_exp_mean = np.zeros(3)
         self.t_last_breath_acc_update = 0
-        self.ibi_latest_phase_duration = 0
-        self.ibi_last_phase = 0
-        self.ibi_last_extreme = 0
         self.br_last_phase = 0
         self.current_br = 0
 
@@ -60,36 +51,17 @@ class Model(QObject):
 
         self.br_psd_freqs_hist = []
         self.br_psd_values_hist = []
-        
-        self.ibi_values_hist = np.full(self.IBI_HIST_SIZE, np.nan)
-        self.ibi_times_hist_rel_s = np.full(self.IBI_HIST_SIZE, np.nan) 
-        self.ibi_values_interp_hist = [] # Interpolated IBI values
-        self.ibi_times_interp_hist = [] # Interpolated IBI times
-        self.ibi_values_last_cycle = [] # IBI values in the last breathing cycle
-        self.hr_values_hist = np.full(self.IBI_HIST_SIZE, np.nan)
-        
-        self.hrv_values_hist = np.full(self.HRV_HIST_SIZE, np.nan) # HR range based on local IBI extrema
-        self.hrv_times_hist = np.arange(-self.HRV_HIST_SIZE, 0) 
 
-        self.hrv_psd_freqs_hist = []
-        self.hrv_psd_values_hist = []
-
-        self.hr_coherence = np.nan
         self.br_coherence = np.nan
         
         self.br_values_hist = np.full(self.BR_HIST_SIZE, np.nan)
         self.br_times_hist = np.full(self.BR_HIST_SIZE, np.nan) 
         self.br_times_hist_rel_s = np.full(self.BR_HIST_SIZE, np.nan) 
-        
-        self.rmssd_values_hist = np.full(self.BR_HIST_SIZE, np.nan)
-        self.maxmin_values_hist = np.full(self.BR_HIST_SIZE, np.nan) # Max-min HR in a breathing cycle
 
         self.br_pace_values_hist = np.full(self.BR_HIST_SIZE, np.nan)
 
-        self.hr_extrema_ids = np.full(self.HRV_HIST_SIZE, -1, dtype=int)
         self.breath_cycle_ids = np.full(self.BR_HIST_SIZE, -1, dtype=int)
         
-
     async def set_and_connect_sensor(self, sensor: BlehrmClientInterface):
         self.sensor_client = sensor
         await self.sensor_client.connect()    
@@ -101,104 +73,18 @@ class Model(QObject):
         
         self.sensor_connected.emit()
 
-    
     async def disconnect_sensor(self):
         await self.sensor_client.disconnect()
-
-    def update_hrv(self):
-
-        # Update duration and determine the current phase
-        self.ibi_latest_phase_duration += self.ibi_values_hist[-1]
-        current_ibi_phase = np.sign(self.ibi_values_hist[-1] - self.ibi_values_hist[-2])
-        
-        # Exit if the phase is constant or zero
-        if current_ibi_phase == 0 or current_ibi_phase == self.ibi_last_phase:
-            return
-
-        # Calculate latest HRV and phase duration
-        current_ibi_extreme = self.ibi_values_hist[-2]
-        latest_hrv = abs(self.ibi_last_extreme - current_ibi_extreme)
-        seconds_current_phase = np.ceil(self.ibi_latest_phase_duration / 1000.0)
-
-        # Exit if the HRV is too low
-        if latest_hrv < self.HRV_MIN_FILTER*(np.amin(self.hrv_values_hist[-2:])):
-            print(f"Rejected low HRV value")
-            return
-
-        # Update HRV and IBI history
-        self.hrv_values_hist = np.roll(self.hrv_values_hist, -1)
-        self.hrv_values_hist[-1] = latest_hrv
-
-        self.hrv_times_hist = self.hrv_times_hist - seconds_current_phase
-        self.hrv_times_hist = np.roll(self.hrv_times_hist, -1)
-        self.hrv_times_hist[-1] = 0
-
-        self.hr_extrema_ids = np.roll(self.hr_extrema_ids, -1)
-        self.hr_extrema_ids[-1] = self.IBI_HIST_SIZE - 2
-        
-        self.ibi_latest_phase_duration = 0
-        self.ibi_last_extreme = current_ibi_extreme
-        self.ibi_last_phase = current_ibi_phase
-
-    def update_hrv_spectrum(self):
-        
-        # Taking only last 30 seconds
-        ids = self.ibi_times_hist_rel_s > (self.ibi_times_hist_rel_s[-1] - 30) # Hardcode 30 seconds
-        ids = np.logical_and(ids, ~np.isnan(self.ibi_values_hist))
-        
-        # Interpolate with fixed interval
-        values = self.ibi_values_hist[ids]
-        times = self.ibi_times_hist_rel_s[ids]
-        t_start = times[0] 
-        t_end = times[-1]
-        dt = 60.0/90.0 # Assume a max of 90 bpm, maximum of 0.75 Hz
-        self.ibi_times_interp_hist = np.arange(t_start, t_end+dt, dt)
-        self.ibi_values_interp_hist = np.interp(self.ibi_times_interp_hist, times, values)
-        
-        # Calculate HRV spectrum
-        self.hrv_psd_freqs_hist, self.hrv_psd_values_hist = signal.periodogram(self.ibi_values_interp_hist, fs=1/dt, window='hann', detrend='linear')
-        self.hrv_psd_values_hist /= np.sum(self.hrv_psd_values_hist)
-
-        # Interpolating the power spectral density, to get sub-bin integration
-        hrv_psd_freqs_interp = np.arange(self.hrv_psd_freqs_hist[0], self.hrv_psd_freqs_hist[-1], 0.005)
-        hrv_psd_interp = np.interp(hrv_psd_freqs_interp, self.hrv_psd_freqs_hist, self.hrv_psd_values_hist)
-        
-        # Calculating total power and peak power
-        pacer_freq = self.pacer.last_breathing_rate/60.0
-        total_power = np.trapz(hrv_psd_interp, hrv_psd_freqs_interp)
-        peak_indices = np.where((hrv_psd_freqs_interp >= pacer_freq - 0.015) & (hrv_psd_freqs_interp <= pacer_freq + 0.015)) # 0.03 Hz around the peak is recommended by R. McCraty
-        peak_power = np.trapz(hrv_psd_interp[peak_indices], hrv_psd_freqs_interp[peak_indices])
-
-        self.hr_coherence = peak_power/total_power
 
     def handle_ibi_callback(self, data):
 
         t, ibi = data
-        
-        # Skip unreasonably low or high values
-        if ibi < self.IBI_MIN_FILTER or ibi > self.IBI_MAX_FILTER:
-            return
-
-        # Update IBI and HR history
-        self.ibi_values_hist = np.roll(self.ibi_values_hist, -1)
-        self.ibi_values_hist[-1] = ibi
-        self.hr_values_hist = 60.0/(self.ibi_values_hist/1000.0)
-
-        self.ibi_times_hist_rel_s = -np.flip(np.cumsum(np.flip(self.ibi_values_hist)))/1000.0 # seconds relative to the last value
-        self.ibi_times_hist_rel_s = np.roll(self.ibi_times_hist_rel_s, -1)
-        self.ibi_times_hist_rel_s[-1] = 0
-
-        # Update index of heart rate extrema
-        self.hr_extrema_ids = self.hr_extrema_ids - 1
-        self.hr_extrema_ids[self.hr_extrema_ids < -1] = -1
-        
-        self.update_hrv()
-        # self.update_hrv_spectrum()
+        self.hrv_analyser.update(t, ibi)
 
     def update_breathing_rate(self):
 
         # Update the breathing rate and pacer history
-        if np.isnan(self.br_times_hist[-1]):
+        if np.isnan(self.br_times_hist[-1]): # First value
             self.br_values_hist = np.roll(self.br_values_hist, -1)
             self.br_values_hist[-1] = self.current_br
 
@@ -208,13 +94,7 @@ class Model(QObject):
             self.br_times_hist = np.roll(self.br_times_hist, -1)
             self.br_times_hist[-1] = self.breath_acc_times[-1]
 
-            self.rmssd_values_hist = np.roll(self.rmssd_values_hist, -1)
-            self.rmssd_values_hist[-1] = 0
-
-            self.maxmin_values_hist = np.roll(self.maxmin_values_hist, -1)
-            self.maxmin_values_hist[-1] = 0
         else:
-
             # Update the breathing rate history
             self.br_values_hist = np.roll(self.br_values_hist, -1)
             self.br_values_hist[-1] = self.current_br
@@ -225,18 +105,10 @@ class Model(QObject):
             self.br_times_hist = np.roll(self.br_times_hist, -1)
             self.br_times_hist[-1] = self.breath_acc_times[-1]
 
-            # Update the RMSSD history
-            ibi_indices_in_cycle = self.ibi_times_hist_rel_s > (self.br_times_hist[-2] - time.time_ns()/1.0e9)
-            self.ibi_values_last_cycle = self.ibi_values_hist[ibi_indices_in_cycle]
-            ibi_ssd = self.ibi_values_hist[ibi_indices_in_cycle] - self.ibi_values_hist[np.roll(ibi_indices_in_cycle, -1)]
-            rmssd = np.sqrt(np.mean(ibi_ssd**2))
-            self.rmssd_values_hist = np.roll(self.rmssd_values_hist, -1)
-            self.rmssd_values_hist[-1] = rmssd
+            # Update hrv metrics
+            t_range = (self.br_times_hist[-2], self.br_times_hist[-1])
+            self.hrv_analyser.update_breath_by_breath_metrics(t_range)
 
-            # Update the max-min history
-            maxmin = np.max(self.ibi_values_hist[ibi_indices_in_cycle]) - np.min(self.ibi_values_hist[ibi_indices_in_cycle])
-            self.maxmin_values_hist = np.roll(self.maxmin_values_hist, -1)
-            self.maxmin_values_hist[-1] = maxmin
 
     def update_breathing_spectrum(self):
         if np.sum(~np.isnan(self.breath_acc_times)) < 3:
@@ -289,7 +161,7 @@ class Model(QObject):
 
         # Calculate the breathing rate
         self.current_br = 60.0 / (self.breath_acc_times[-1] - self.br_times_hist[-1])
-        
+
         # Filter out high breathing rates
         if self.current_br > self.BR_MAX_FILTER:
             return 0 
