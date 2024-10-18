@@ -11,7 +11,7 @@ from Model import Model
 from sensor import SensorHandler
 from views.widgets import CirclesWidget, SquareWidget
 from views.charts import create_chart, create_scatter_series, create_line_series, create_spline_series, create_axis
-from styles.colours import RED, YELLOW, ORANGE, GREEN, BLUE, GRAY, GOLD, LINEWIDTH, DOTSIZE_LARGE, DOTSIZE_SMALL
+from styles.colours import RED, YELLOW, GREEN, BLUE, GRAY, GOLD, LINEWIDTH, DOTSIZE_SMALL
 from styles.utils import get_stylesheet
 
 class View(QChartView):
@@ -272,25 +272,17 @@ class View(QChartView):
         self.pacer_times_hist[-1] = time.time_ns()/1.0e9
 
         # Breathing
-        breath_coordinates = self.model.get_breath_circle_coords()
+        breath_coordinates = self.model.breath_analyser.get_breath_circle_coords()
         self.circles_widget.update_breath_series(*breath_coordinates)
 
     def update_acc_series(self):
         
         self.pacer_times_hist_rel_s = self.pacer_times_hist - time.time_ns()/1.0e9
             
-        self.breath_acc_times_rel_s = self.model.breath_acc_times - time.time_ns()/1.0e9
-        series_breath_acc_new = []
-
-        for i, value in enumerate(self.breath_acc_times_rel_s):
-            if not np.isnan(value):
-                series_breath_acc_new.append(QPointF(value, self.model.breath_acc_hist[i]))
+        series_breath_acc_new = self.model.breath_analyser.chest_acc_history.get_qpoint_list()
         self.series_breath_acc.replace(series_breath_acc_new)
         
-        series_breath_cycle_marker_new = []
-        for i, value in enumerate(self.model.breath_cycle_ids):
-            if not value < 0:
-                series_breath_cycle_marker_new.append(QPointF(self.breath_acc_times_rel_s[value], self.model.breath_acc_hist[value]))
+        series_breath_cycle_marker_new = self.model.breath_analyser.chest_acc_history.get_qpoint_marker_list()
         self.series_breath_cycle_marker.replace(series_breath_cycle_marker_new)
 
         series_pacer_new = []
@@ -303,22 +295,13 @@ class View(QChartView):
 
     def update_series(self):
 
-        self.br_times_hist_rel_s = self.model.br_times_hist - time.time_ns()/1.0e9
-
         series_hr_new = self.model.hrv_analyser.hr_history.get_qpoint_list()
         self.series_hr.replace(series_hr_new)
 
         # Breathing rate plot
-        series_br_new = []
-        for i, value in enumerate(self.model.br_values_hist):
-            if not np.isnan(value):
-                series_br_new.append(QPointF(self.br_times_hist_rel_s[i], value))
+        series_br_new = self.model.breath_analyser.br_history.get_qpoint_list()
         self.series_br.replace(series_br_new)
         self.series_br_marker.replace(series_br_new)
-        
-        if np.any(~np.isnan(self.model.br_values_hist)):
-            max_val = np.ceil(np.nanmax(self.model.br_values_hist[self.br_times_hist_rel_s > -self.HRV_SERIES_TIME_RANGE])/5)*5
-            self.axis_br_y.setRange(0, max_val)
 
         # RMSSD Series
         series_maxmin_new = self.model.hrv_analyser.maxmin_history.get_qpoint_list()
