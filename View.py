@@ -64,6 +64,8 @@ class View(QChartView):
         self.axis_y_breath_acc = create_axis("Chest expansion (m/s2)", BLUE, rangeMin=-1, rangeMax=1, labelSize=10)
 
         self.series_hr = create_scatter_series(RED, DOTSIZE_SMALL)
+        # Spline series for heart rate
+        self.series_hr_spline = create_spline_series(RED, LINEWIDTH)
         self.axis_hr_y = create_axis(title="HR (bpm)", color=RED, rangeMin=50, rangeMax=80, labelSize=10)
 
         # Configure
@@ -71,6 +73,7 @@ class View(QChartView):
         self.chart_breath.addSeries(self.series_breath_acc)
         self.chart_breath.addSeries(self.series_breath_cycle_marker)
         self.chart_breath.addSeries(self.series_hr)
+        self.chart_breath.addSeries(self.series_hr_spline)
         self.chart_breath.addAxis(self.axis_acc_x, Qt.AlignBottom)
         self.chart_breath.addAxis(self.axis_y_breath_acc, Qt.AlignRight)
         self.chart_breath.addAxis(self.axis_hr_y, Qt.AlignLeft)
@@ -82,6 +85,8 @@ class View(QChartView):
         self.series_breath_cycle_marker.attachAxis(self.axis_y_breath_acc)
         self.series_hr.attachAxis(self.axis_acc_x)
         self.series_hr.attachAxis(self.axis_hr_y)
+        self.series_hr_spline.attachAxis(self.axis_acc_x)
+        self.series_hr_spline.attachAxis(self.axis_hr_y)
 
     def create_hrv_chart(self):
         '''
@@ -127,6 +132,7 @@ class View(QChartView):
         self.hrv_band_2.setOpacity(0.2)
         self.hrv_band_2.setPen(QPen(Qt.NoPen))
 
+        
         # Heart rate variability chart
         # self.chart_hrv.addSeries(self.series_hrv)
         self.chart_hrv.addSeries(self.hrv_band_0)
@@ -297,6 +303,8 @@ class View(QChartView):
 
         series_hr_new = self.model.hrv_analyser.hr_history.get_qpoint_list()
         self.series_hr.replace(series_hr_new)
+        # Update the HR spline series to match scatter points
+        self.series_hr_spline.replace(series_hr_new)
 
         # Breathing rate plot
         series_br_new = self.model.breath_analyser.br_history.get_qpoint_list()
