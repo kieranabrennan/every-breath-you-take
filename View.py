@@ -42,6 +42,7 @@ class View(QChartView):
 
         self.create_breath_chart()
         self.create_hrv_chart()
+        self.create_coherence_chart()
         self.create_circles_layout()
         self.set_view_layout()
         self.start_view_update()
@@ -64,6 +65,8 @@ class View(QChartView):
         self.axis_y_breath_acc = create_axis("Chest expansion (m/s2)", BLUE, rangeMin=-1, rangeMax=1, labelSize=10)
 
         self.series_hr = create_scatter_series(RED, DOTSIZE_SMALL)
+        # Spline series for heart rate
+        self.series_hr_spline = create_spline_series(RED, LINEWIDTH)
         self.axis_hr_y = create_axis(title="HR (bpm)", color=RED, rangeMin=50, rangeMax=80, labelSize=10)
 
         # Configure
@@ -71,6 +74,7 @@ class View(QChartView):
         self.chart_breath.addSeries(self.series_breath_acc)
         self.chart_breath.addSeries(self.series_breath_cycle_marker)
         self.chart_breath.addSeries(self.series_hr)
+        self.chart_breath.addSeries(self.series_hr_spline)
         self.chart_breath.addAxis(self.axis_acc_x, Qt.AlignBottom)
         self.chart_breath.addAxis(self.axis_y_breath_acc, Qt.AlignRight)
         self.chart_breath.addAxis(self.axis_hr_y, Qt.AlignLeft)
@@ -82,6 +86,8 @@ class View(QChartView):
         self.series_breath_cycle_marker.attachAxis(self.axis_y_breath_acc)
         self.series_hr.attachAxis(self.axis_acc_x)
         self.series_hr.attachAxis(self.axis_hr_y)
+        self.series_hr_spline.attachAxis(self.axis_acc_x)
+        self.series_hr_spline.attachAxis(self.axis_hr_y)
 
     def create_hrv_chart(self):
         '''
@@ -127,6 +133,7 @@ class View(QChartView):
         self.hrv_band_2.setOpacity(0.2)
         self.hrv_band_2.setPen(QPen(Qt.NoPen))
 
+        
         # Heart rate variability chart
         # self.chart_hrv.addSeries(self.series_hrv)
         self.chart_hrv.addSeries(self.hrv_band_0)
@@ -155,6 +162,27 @@ class View(QChartView):
         # self.series_br.attachAxis(self.axis_br_y)
         self.series_br_marker.attachAxis(self.axis_hrv_x)
         self.series_br_marker.attachAxis(self.axis_br_y)
+
+    def create_coherence_chart(self):
+        '''
+        Chart showing HR coherence over time
+        '''
+        self.chart_coherence = create_chart(title='Coherence', showTitle=False, showLegend=False)
+
+        self.series_coherence = create_spline_series(GREEN, LINEWIDTH)
+        self.series_coherence_marker = create_scatter_series(GREEN, DOTSIZE_SMALL)
+
+        self.axis_coh_x = create_axis(title=None, tickCount=10, rangeMin=-self.HRV_SERIES_TIME_RANGE, rangeMax=0, labelSize=10)
+        self.axis_coh_y = create_axis(title="HR Coherence", color=GREEN, rangeMin=0, rangeMax=20, labelSize=10)
+
+        self.chart_coherence.addSeries(self.series_coherence)
+        self.chart_coherence.addSeries(self.series_coherence_marker)
+        self.chart_coherence.addAxis(self.axis_coh_x, Qt.AlignBottom)
+        self.chart_coherence.addAxis(self.axis_coh_y, Qt.AlignLeft)
+        self.series_coherence.attachAxis(self.axis_coh_x)
+        self.series_coherence.attachAxis(self.axis_coh_y)
+        self.series_coherence_marker.attachAxis(self.axis_coh_x)
+        self.series_coherence_marker.attachAxis(self.axis_coh_y)
 
     def create_circles_layout(self):
 
@@ -205,6 +233,13 @@ class View(QChartView):
         self.message_box.setFixedHeight(15)
         self.message_box.setAlignment(Qt.AlignLeft)
 
+        # HR coherence label
+        self.hr_coherence_label = QLabel("HR Coherence: --")
+        self.hr_coherence_label.setStyleSheet("QLabel {color: black}")
+        self.hr_coherence_label.setFixedWidth(160)
+        self.hr_coherence_label.setFixedHeight(15)
+        self.hr_coherence_label.setAlignment(Qt.AlignLeft)
+
         self.scan_button = QPushButton("Scan")
         self.scan_button.clicked.connect(self._on_scan_button_press)
         shadow = QGraphicsDropShadowEffect()
@@ -220,6 +255,8 @@ class View(QChartView):
         controlLayout = QHBoxLayout()
         controlLayout.addStretch(1)
         controlLayout.addWidget(self.message_box)
+        controlLayout.addSpacing(10)
+        controlLayout.addWidget(self.hr_coherence_label)
         # controlLayout.addStretch(1)
         controlLayout.addWidget(self.scan_button)
         controlLayout.addWidget(self.device_menu)
@@ -232,6 +269,12 @@ class View(QChartView):
 
         graphLayout.addLayout(topRowLayout, stretch=1)
         graphLayout.addWidget(hrv_widget, stretch=1)
+
+        # Coherence chart widget
+        coh_widget = QChartView(self.chart_coherence)
+        coh_widget.setStyleSheet("background-color: transparent;")
+        coh_widget.setRenderHint(QPainter.Antialiasing)
+        graphLayout.addWidget(coh_widget, stretch=1)
         graphLayout.setContentsMargins(0, 0, 0, 0)
 
         layout.addLayout(graphLayout, stretch=10)
@@ -253,9 +296,15 @@ class View(QChartView):
         self.pacer_timer.setInterval(self.UPDATE_PACER_PERIOD)  # ms (20 Hz)
         self.pacer_timer.timeout.connect(self.plot_circles)
 
+        # Update HR coherence roughly once per second
+        self.coherence_timer = QTimer()
+        self.coherence_timer.setInterval(1000)
+        self.coherence_timer.timeout.connect(self.update_hr_coherence)
+
         self.update_acc_series_timer.start()
         self.update_series_timer.start()
         self.pacer_timer.start()
+        self.coherence_timer.start()
 
     def update_pacer_rate(self):
         self.pacer_rate = self.pacer_slider.value()/2
@@ -297,6 +346,8 @@ class View(QChartView):
 
         series_hr_new = self.model.hrv_analyser.hr_history.get_qpoint_list()
         self.series_hr.replace(series_hr_new)
+        # Update the HR spline series to match scatter points
+        self.series_hr_spline.replace(series_hr_new)
 
         # Breathing rate plot
         series_br_new = self.model.breath_analyser.br_history.get_qpoint_list()
@@ -307,6 +358,39 @@ class View(QChartView):
         series_maxmin_new = self.model.hrv_analyser.maxmin_history.get_qpoint_list()
         self.series_maxmin.replace(series_maxmin_new)
         self.series_maxmin_marker.replace(series_maxmin_new)
+
+        # Coherence plot (uses data updated by update_hr_coherence timer)
+        series_coh_new = self.model.hrv_analyser.coherence_history.get_qpoint_list()
+        self.series_coherence.replace(series_coh_new)
+        self.series_coherence_marker.replace(series_coh_new)
+
+        # Auto-scale coherence Y-axis based on recent window if possible
+        coh_range = self.model.hrv_analyser.coherence_history.get_values_range((-self.HRV_SERIES_TIME_RANGE, 0))
+        if coh_range is not None:
+            ymin = 0 if coh_range[0] < 0 else coh_range[0]
+            ymax = max(10, coh_range[1])
+            if ymin == ymax:
+                ymax = ymin + 1
+            self.axis_coh_y.setRange(ymin, ymax)
+
+    def update_hr_coherence(self):
+        """Compute and display HR coherence if enough data is available"""
+        try:
+            # Require at least a few IBI points to avoid empty-window errors
+            if self.model.hrv_analyser.ibi_history.n_values() < 3:
+                self.hr_coherence_label.setText("HR Coherence: --")
+                return
+
+            self.model.hrv_analyser.update_coherence()
+            value = self.model.hrv_analyser.hr_coherence
+            if value is None or (isinstance(value, float) and (np.isnan(value) or np.isinf(value))):
+                self.hr_coherence_label.setText("HR Coherence: --")
+            else:
+                self.hr_coherence_label.setText(f"HR Coherence: {value:.2f}")
+        except Exception as e:
+            # Keep UI resilient if computation fails early in a session
+            self.logger.error(f"Coherence update failed: {e}")
+            self.hr_coherence_label.setText("HR Coherence: --")
 
     async def set_first_sensor_found(self):
         ''' List valid devices and connect to first one'''
